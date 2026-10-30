@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useThemeColors } from '../src/utils/theme';
 
 interface LegalModalProps {
   visible: boolean;
@@ -17,17 +18,18 @@ interface LegalModalProps {
 
 export default function LegalModal({ visible, type, onClose }: LegalModalProps) {
   const isPrivacy = type === 'privacy';
+  const colors = useThemeColors();
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={styles.modalCard}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
+        <View style={[styles.modalCard, { backgroundColor: colors.card }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
               {isPrivacy ? 'Política de Privacidad' : 'Términos y Condiciones'}
             </Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={22} color="#6B7280" />
+              <Ionicons name="close" size={22} color={colors.subText} />
             </TouchableOpacity>
           </View>
 
@@ -36,23 +38,23 @@ export default function LegalModal({ visible, type, onClose }: LegalModalProps) 
               <>
                 <Text style={styles.updateDate}>Última actualización: Octubre 2026</Text>
                 
-                <Text style={styles.heading}>1. Información que Recopilamos</Text>
-                <Text style={styles.paragraph}>
+                <Text style={[styles.heading, { color: colors.text }]}>1. Información que Recopilamos</Text>
+                <Text style={[styles.paragraph, { color: colors.subText }]}>
                   NotaSegura recopila información proporcionada voluntariamente por el usuario, como su nombre, correo electrónico, institución educativa, carrera, así como los datos académicos ingresados (materias, notas, tareas, calificaciones y archivos multimedia de bitácoras).
                 </Text>
 
-                <Text style={styles.heading}>2. Uso de la Información (Habeas Data)</Text>
-                <Text style={styles.paragraph}>
+                <Text style={[styles.heading, { color: colors.text }]}>2. Uso de la Información (Habeas Data)</Text>
+                <Text style={[styles.paragraph, { color: colors.subText }]}>
                   Los datos recolectados se utilizan exclusivamente para la gestión académica personal del usuario, el cálculo de promedios, el funcionamiento del semáforo académico y la sincronización segura con nuestros servidores (Supabase). No compartimos ni comercializamos tu información con terceros.
                 </Text>
 
-                <Text style={styles.heading}>3. Almacenamiento y Seguridad</Text>
-                <Text style={styles.paragraph}>
+                <Text style={[styles.heading, { color: colors.text }]}>3. Almacenamiento y Seguridad</Text>
+                <Text style={[styles.paragraph, { color: colors.subText }]}>
                   La aplicación almacena información de manera local en el dispositivo (mediante almacenamiento cifrado/seguro) y en la nube a través de Supabase con protocolos de seguridad y Row Level Security (RLS) para garantizar que solo tú accedas a tus datos.
                 </Text>
 
-                <Text style={styles.heading}>4. Eliminación de Datos</Text>
-                <Text style={styles.paragraph}>
+                <Text style={[styles.heading, { color: colors.text }]}>4. Eliminación de Datos</Text>
+                <Text style={[styles.paragraph, { color: colors.subText }]}>
                   De conformidad con las políticas de Google Play y App Store, tienes derecho a solicitar la eliminación definitiva de tu cuenta y todos tus datos asociados en cualquier momento desde la sección de Configuración/Perfil en la aplicación.
                 </Text>
               </>
@@ -60,23 +62,23 @@ export default function LegalModal({ visible, type, onClose }: LegalModalProps) 
               <>
                 <Text style={styles.updateDate}>Última actualización: Octubre 2026</Text>
 
-                <Text style={styles.heading}>1. Aceptación de los Términos</Text>
-                <Text style={styles.paragraph}>
+                <Text style={[styles.heading, { color: colors.text }]}>1. Aceptación de los Términos</Text>
+                <Text style={[styles.paragraph, { color: colors.subText }]}>
                   Al registrarte y utilizar la aplicación NotaSegura, aceptas cumplir con los presentes Términos y Condiciones. Si no estás de acuerdo con alguno de ellos, debes abstenerse de utilizar la aplicación.
                 </Text>
 
-                <Text style={styles.heading}>2. Propósito Académico</Text>
-                <Text style={styles.paragraph}>
+                <Text style={[styles.heading, { color: colors.text }]}>2. Propósito Académico</Text>
+                <Text style={[styles.paragraph, { color: colors.subText }]}>
                   NotaSegura es una herramienta digital de apoyo y organización estudiantil. Los cálculos de promedios, notas requeridas y semáforos académicos son proyecciones de referencia basadas en la información ingresada por el usuario.
                 </Text>
 
-                <Text style={styles.heading}>3. Responsabilidad del Usuario</Text>
-                <Text style={styles.paragraph}>
+                <Text style={[styles.heading, { color: colors.text }]}>3. Responsabilidad del Usuario</Text>
+                <Text style={[styles.paragraph, { color: colors.subText }]}>
                   El usuario es responsable de la veracidad y exactitud de los datos que ingresa, así como de verificar sus calificaciones oficiales directamente con su institución educativa. NotaSegura no sustituye los registros oficiales de ninguna institución.
                 </Text>
 
-                <Text style={styles.heading}>4. Propiedad Intelectual</Text>
-                <Text style={styles.paragraph}>
+                <Text style={[styles.heading, { color: colors.text }]}>4. Propiedad Intelectual</Text>
+                <Text style={[styles.paragraph, { color: colors.subText }]}>
                   Todo el diseño, código fuente, logotipos y características de NotaSegura están protegidos por las leyes de propiedad intelectual y pertenecen a sus creadores.
                 </Text>
               </>

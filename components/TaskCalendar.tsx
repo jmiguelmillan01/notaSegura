@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { Task } from '../src/types/database';
+import { useThemeColors } from '../src/utils/theme';
 
 // Configurar calendario en español
 LocaleConfig.locales['es'] = {
@@ -33,6 +34,8 @@ interface TaskCalendarProps {
 }
 
 export function TaskCalendar({ tasks, selectedDate, onSelectDate }: TaskCalendarProps) {
+  const colors = useThemeColors();
+
   // Transformar las tareas al formato requerido por react-native-calendars
   const markedDates = useMemo(() => {
     const marks: { [key: string]: any } = {};
@@ -67,7 +70,7 @@ export function TaskCalendar({ tasks, selectedDate, onSelectDate }: TaskCalendar
   }, [tasks, selectedDate]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <Calendar
         current={selectedDate || undefined}
         onDayPress={(day) => {
@@ -76,18 +79,18 @@ export function TaskCalendar({ tasks, selectedDate, onSelectDate }: TaskCalendar
         markedDates={markedDates}
         markingType={'multi-dot'}
         theme={{
-          backgroundColor: '#ffffff',
-          calendarBackground: '#ffffff',
-          textSectionTitleColor: '#b6c1cd',
+          backgroundColor: colors.card,
+          calendarBackground: colors.card,
+          textSectionTitleColor: colors.subText,
           selectedDayBackgroundColor: '#4F46E5',
           selectedDayTextColor: '#ffffff',
           todayTextColor: '#4F46E5',
-          dayTextColor: '#2d4150',
-          textDisabledColor: '#d9e1e8',
+          dayTextColor: colors.text,
+          textDisabledColor: colors.mutedText,
           dotColor: '#4F46E5',
           selectedDotColor: '#ffffff',
           arrowColor: '#4F46E5',
-          monthTextColor: '#111827',
+          monthTextColor: colors.text,
           indicatorColor: '#4F46E5',
           textDayFontWeight: '500',
           textMonthFontWeight: 'bold',
@@ -103,16 +106,14 @@ export function TaskCalendar({ tasks, selectedDate, onSelectDate }: TaskCalendar
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 2,
   },
 });
