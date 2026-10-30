@@ -10,10 +10,12 @@ interface AppState {
   grades: Grade[];
   tasks: Task[];
   profile: { full_name?: string; institution?: string; major?: string; bio?: string } | null;
+  theme: 'light' | 'dark' | 'system';
   isLoading: boolean;
 
   fetchData: () => Promise<void>;
   updateProfile: (profile: { full_name?: string; institution?: string; major?: string; bio?: string }) => Promise<void>;
+  setTheme: (theme: 'light' | 'dark' | 'system') => void;
   clearStore: () => void;
 
   addSubject: (subject: Omit<Subject, 'id' | 'user_id' | 'created_at'>) => Promise<Subject>;
@@ -62,7 +64,10 @@ export const useAppStore = create<AppState>()(
   grades: INITIAL_GRADES,
   tasks: INITIAL_TASKS,
   profile: null,
+  theme: 'system',
   isLoading: false,
+
+  setTheme: (theme) => set({ theme }),
 
   clearStore: () => {
     set({

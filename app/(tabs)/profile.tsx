@@ -18,7 +18,7 @@ import LegalModal from '../../components/LegalModal';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { profile, updateProfile, subjects, clearStore } = useAppStore();
+  const { profile, updateProfile, subjects, clearStore, theme, setTheme } = useAppStore();
 
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [institution, setInstitution] = useState(profile?.institution || '');
@@ -270,6 +270,30 @@ export default function ProfileScreen() {
              </TouchableOpacity>
            </View>
          )}
+       </View>
+
+       <View style={styles.actionsCard}>
+         <Text style={styles.sectionTitle}>Apariencia</Text>
+         <View style={styles.themeRow}>
+           <TouchableOpacity
+             style={[styles.themeBtn, theme === 'light' && styles.themeBtnActive]}
+             onPress={() => setTheme('light')}>
+             <Ionicons name="sunny" size={18} color={theme === 'light' ? '#FFFFFF' : '#4F46E5'} />
+             <Text style={[styles.themeBtnText, theme === 'light' && styles.themeBtnTextActive]}>Claro</Text>
+           </TouchableOpacity>
+           <TouchableOpacity
+             style={[styles.themeBtn, theme === 'dark' && styles.themeBtnActive]}
+             onPress={() => setTheme('dark')}>
+             <Ionicons name="moon" size={18} color={theme === 'dark' ? '#FFFFFF' : '#4F46E5'} />
+             <Text style={[styles.themeBtnText, theme === 'dark' && styles.themeBtnTextActive]}>Oscuro</Text>
+           </TouchableOpacity>
+           <TouchableOpacity
+             style={[styles.themeBtn, theme === 'system' && styles.themeBtnActive]}
+             onPress={() => setTheme('system')}>
+             <Ionicons name="phone-portrait" size={18} color={theme === 'system' ? '#FFFFFF' : '#4F46E5'} />
+             <Text style={[styles.themeBtnText, theme === 'system' && styles.themeBtnTextActive]}>Sistema</Text>
+           </TouchableOpacity>
+         </View>
        </View>
 
        <View style={styles.actionsCard}>
@@ -565,10 +589,35 @@ const styles = StyleSheet.create({
      fontWeight: '600',
      color: '#4F46E5',
    },
-   disclaimerText: {
-     fontSize: 12,
-     color: '#6B7280',
-     lineHeight: 16,
-     marginTop: 4,
-   },
- });
+    disclaimerText: {
+      fontSize: 12,
+      color: '#6B7280',
+      lineHeight: 16,
+      marginTop: 4,
+    },
+    themeRow: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    themeBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#EEF2FF',
+      paddingVertical: 12,
+      borderRadius: 12,
+      gap: 6,
+    },
+    themeBtnActive: {
+      backgroundColor: '#4F46E5',
+    },
+    themeBtnText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: '#4F46E5',
+    },
+    themeBtnTextActive: {
+      color: '#FFFFFF',
+    },
+  });
