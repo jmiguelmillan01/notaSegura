@@ -319,7 +319,7 @@ export default function SubjectsScreen() {
           {/* Tarjeta Dashboard de Proyección (CU-03) */}
           <View style={[styles.dashboardCard, { backgroundColor: colors.card, borderColor: colors.border, borderTopColor: currentSubject.color }]}>
             <View style={styles.cardHeader}>
-              <View>
+              <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={[styles.dashboardSubjectTitle, { color: colors.text }]}>{currentSubject.name}</Text>
                 <Text style={[styles.dashboardSubtitle, { color: colors.subText }]}>
                   Meta: {currentSubject.target_grade.toFixed(1)} | Mínima para aprobar:{' '}
