@@ -50,7 +50,7 @@ export default function TasksScreen() {
 
   const activeSubjects = subjects.filter((s) => !s.is_archived);
   const activeSubjectIds = new Set(activeSubjects.map((s) => s.id));
-  const activeTasks = tasks.filter((t) => activeSubjectIds.has(t.subject_id));
+  const activeTasks = tasks.filter((t) => t.subject_id ? activeSubjectIds.has(t.subject_id) : false);
 
   const displayedTasks = activeTasks.filter((t) => {
     if (viewMode === 'calendar') {

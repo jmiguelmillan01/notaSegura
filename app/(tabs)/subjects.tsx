@@ -321,9 +321,8 @@ export default function SubjectsScreen() {
             <View style={styles.cardHeader}>
               <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={[styles.dashboardSubjectTitle, { color: colors.text }]}>{currentSubject.name}</Text>
-                <Text style={[styles.dashboardSubtitle, { color: colors.subText }]}>
-                  Meta: {currentSubject.target_grade.toFixed(1)} | Mínima para aprobar:{' '}
-                  {currentSubject.min_passing_grade.toFixed(1)}
+                <Text style={[styles.dashboardSubtitle, { color: colors.subText, textAlign: 'center' }]}>
+                  Meta: {currentSubject.target_grade.toFixed(1)} | Mínima: {currentSubject.min_passing_grade.toFixed(1)}
                 </Text>
               </View>
               {badge && (
@@ -339,7 +338,7 @@ export default function SubjectsScreen() {
             {/* Métricas Principales */}
             <View style={[styles.metricsRow, { backgroundColor: isDark ? colors.innerCard : '#F9FAFB', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}>
               <View style={styles.metricItem}>
-                <Text style={[styles.metricLabel, { color: colors.subText }]}>Nota Acumulada</Text>
+                <Text style={[styles.metricLabel, { color: colors.subText }]}>Nota{'\n'}Acumulada</Text>
                 <Text style={[styles.metricValue, { color: currentSubject.color }]}>
                   {simulation.currentAccumulatedGrade.toFixed(2)}
                 </Text>
@@ -349,7 +348,7 @@ export default function SubjectsScreen() {
               <View style={[styles.metricDivider, { backgroundColor: colors.border }]} />
 
               <View style={styles.metricItem}>
-                <Text style={[styles.metricLabel, { color: colors.subText }]}>Falta por Evaluar</Text>
+                <Text style={[styles.metricLabel, { color: colors.subText }]}>Falta por{'\n'}Evaluar</Text>
                 <Text style={[styles.metricValue, { color: colors.text }]}>{simulation.remainingWeight}%</Text>
                 <Text style={[styles.metricSub, { color: colors.mutedText }]}>del semestre</Text>
               </View>
@@ -357,7 +356,7 @@ export default function SubjectsScreen() {
               <View style={[styles.metricDivider, { backgroundColor: colors.border }]} />
 
               <View style={styles.metricItem}>
-                <Text style={[styles.metricLabel, { color: colors.subText }]}>Necesitas Promedio</Text>
+                <Text style={[styles.metricLabel, { color: colors.subText }]}>Necesitas{'\n'}Promedio</Text>
                 <Text
                   style={[
                     styles.metricValue,
@@ -780,11 +779,13 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontWeight: '500',
     marginBottom: 4,
+    textAlign: 'center',
   },
   metricValue: {
     fontSize: 22,
     fontWeight: '800',
     color: '#111827',
+    textAlign: 'center',
   },
   metricSub: {
     fontSize: 10,

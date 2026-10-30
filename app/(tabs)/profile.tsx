@@ -186,8 +186,14 @@ export default function ProfileScreen() {
           <Ionicons name="person" size={36} color="#4F46E5" />
         </View>
         <Text style={[styles.profileName, dynamicStyles.text]}>{fullName || 'Estudiante NotaSegura'}</Text>
-        <Text style={[styles.profileEmail, dynamicStyles.subText]}>
-          {userEmail ? `${userEmail} • ` : ''}{institution ? `${institution} • ` : ''}{major || 'Gestión Académica'}
+        {userEmail ? (
+          <Text style={[styles.profileEmail, dynamicStyles.subText]}>{userEmail}</Text>
+        ) : null}
+        {institution ? (
+          <Text style={[styles.profileDetail, dynamicStyles.subText]}>{institution}</Text>
+        ) : null}
+        <Text style={[styles.profileDetail, dynamicStyles.subText]}>
+          {major || 'Gestión Académica'}
         </Text>
       </View>
 
@@ -420,11 +426,19 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     color: '#111827',
+    textAlign: 'center',
   },
   profileEmail: {
     fontSize: 13,
     color: '#6B7280',
     marginTop: 4,
+    textAlign: 'center',
+  },
+  profileDetail: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2,
+    textAlign: 'center',
   },
   formCard: {
     backgroundColor: '#FFFFFF',
