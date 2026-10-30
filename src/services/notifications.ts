@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants'; // Añadido para intentar evitar el error de ExpoApplication
 import { Task, TaskPriority } from '../types/database';
 
 // Configurar cómo se comportan las notificaciones cuando la app está abierta
@@ -17,7 +18,10 @@ Notifications.setNotificationHandler({
  * Solicitar permisos para notificaciones locales
  */
 export async function requestNotificationPermissions(): Promise<boolean> {
-  if (Platform.OS === 'web') {
+  // Detectar si estamos en Expo Go en Android
+  const isExpoGo = Constants.appOwnership === 'expo';
+  
+  if (Platform.OS === 'web' || (Platform.OS === 'android' && isExpoGo)) {
     return false;
   }
 
