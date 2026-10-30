@@ -15,21 +15,21 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../../src/store/useAppStore';
 import { supabase, isSupabaseConfigured } from '../../src/services/supabase';
 import LegalModal from '../../components/LegalModal';
-import { useColorScheme } from '../../components/useColorScheme';
+import { useThemeColors } from '../../src/utils/theme';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { profile, updateProfile, subjects, clearStore, theme, setTheme } = useAppStore();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const colors = useThemeColors();
+  const isDark = colors.isDark;
 
   const dynamicStyles = {
-    container: { backgroundColor: isDark ? '#111827' : '#F9FAFB' },
-    card: { backgroundColor: isDark ? '#1F2937' : '#FFFFFF', borderColor: isDark ? '#374151' : '#E5E7EB' },
-    text: { color: isDark ? '#F9FAFB' : '#111827' },
-    subText: { color: isDark ? '#9CA3AF' : '#6B7280' },
-    input: { backgroundColor: isDark ? '#374151' : '#F9FAFB', color: isDark ? '#FFFFFF' : '#111827', borderColor: isDark ? '#4B5563' : '#D1D5DB' },
-    label: { color: isDark ? '#D1D5DB' : '#374151' },
+    container: { backgroundColor: colors.background },
+    card: { backgroundColor: colors.card, borderColor: colors.border },
+    text: { color: colors.text },
+    subText: { color: colors.subText },
+    input: { backgroundColor: colors.inputBg, color: colors.inputText, borderColor: colors.inputBorder },
+    label: { color: colors.subText },
   };
 
   const [fullName, setFullName] = useState(profile?.full_name || '');

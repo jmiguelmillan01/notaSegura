@@ -10,10 +10,13 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../../src/store/useAppStore';
 import { calculateSubjectGrades } from '../../src/services/gradesCalculator';
+import { useThemeColors } from '../../src/utils/theme';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { subjects, grades, tasks, profile, toggleTaskCompleted } = useAppStore();
+  const colors = useThemeColors();
+  const isDark = colors.isDark;
 
   const userName = profile?.full_name?.split(' ')[0] || 'Estudiante';
 
@@ -39,29 +42,29 @@ export default function HomeScreen() {
   );
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.contentContainer}>
       {/* Saludo y Encabezado */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greetingTitle}>¡Hola, {userName}! 👋</Text>
-          <Text style={styles.greetingSubtitle}>Tu semestre bajo control en NotaSegura</Text>
+          <Text style={[styles.greetingTitle, { color: colors.text }]}>¡Hola, {userName}! 👋</Text>
+          <Text style={[styles.greetingSubtitle, { color: colors.subText }]}>Tu semestre bajo control en NotaSegura</Text>
         </View>
       </View>
 
       {/* Tarjeta Resumen General */}
-      <View style={styles.summaryCard}>
+      <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>{activeSubjects.length}</Text>
-          <Text style={styles.summaryLabel}>Materias</Text>
+          <Text style={[styles.summaryValue, { color: colors.text }]}>{activeSubjects.length}</Text>
+          <Text style={[styles.summaryLabel, { color: colors.subText }]}>Materias</Text>
         </View>
-        <View style={styles.summaryDivider} />
+        <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
         <View style={styles.summaryItem}>
           <Text style={[styles.summaryValue, { color: '#D97706' }]}>
             {pendingTasks.length}
           </Text>
-          <Text style={styles.summaryLabel}>Pendientes</Text>
+          <Text style={[styles.summaryLabel, { color: colors.subText }]}>Pendientes</Text>
         </View>
-        <View style={styles.summaryDivider} />
+        <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
         <View style={styles.summaryItem}>
           <Text
             style={[
@@ -70,7 +73,7 @@ export default function HomeScreen() {
             ]}>
             {subjectsAtRisk.length}
           </Text>
-          <Text style={styles.summaryLabel}>En Riesgo</Text>
+          <Text style={[styles.summaryLabel, { color: colors.subText }]}>En Riesgo</Text>
         </View>
       </View>
 
@@ -103,16 +106,16 @@ export default function HomeScreen() {
 
       {/* Tareas Urgentes y Próximas (CU-02) */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Entregas y Alertas Próximas</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Entregas y Alertas Próximas</Text>
         <TouchableOpacity onPress={() => router.push('/(tabs)/tasks')}>
           <Text style={styles.seeAllText}>Ver todas ({pendingTasks.length})</Text>
         </TouchableOpacity>
       </View>
 
       {urgentTasks.length === 0 ? (
-        <View style={styles.emptyCard}>
+        <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Ionicons name="checkmark-done" size={28} color="#10B981" />
-          <Text style={styles.emptyCardText}>¡Estás al día! No tienes tareas urgentes pendientes.</Text>
+          <Text style={[styles.emptyCardText, { color: colors.subText }]}>¡Estás al día! No tienes tareas urgentes pendientes.</Text>
         </View>
       ) : (
         urgentTasks.map((t) => {
@@ -122,11 +125,11 @@ export default function HomeScreen() {
             day: 'numeric',
           });
           return (
-            <View key={t.id} style={styles.urgentTaskCard}>
+            <View key={t.id} style={[styles.urgentTaskCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <TouchableOpacity
                 style={styles.checkBtn}
                 onPress={() => toggleTaskCompleted(t.id)}>
-                <Ionicons name="square-outline" size={20} color="#6B7280" />
+                <Ionicons name="square-outline" size={20} color={colors.subText} />
               </TouchableOpacity>
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -151,8 +154,8 @@ export default function HomeScreen() {
                     </Text>
                   </View>
                 </View>
-                <Text style={styles.urgentTaskTitle}>{t.title}</Text>
-                <Text style={styles.urgentTaskDue}>Vence: {dueDateFormatted}</Text>
+                <Text style={[styles.urgentTaskTitle, { color: colors.text }]}>{t.title}</Text>
+                <Text style={[styles.urgentTaskDue, { color: colors.subText }]}>Vence: {dueDateFormatted}</Text>
               </View>
             </View>
           );
@@ -161,7 +164,7 @@ export default function HomeScreen() {
 
       {/* Semáforo de Materias (CU-03) */}
       <View style={[styles.sectionHeader, { marginTop: 24 }]}>
-        <Text style={styles.sectionTitle}>Semáforo Académico</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Semáforo Académico</Text>
         <TouchableOpacity onPress={() => router.push('/(tabs)/subjects')}>
           <Text style={styles.seeAllText}>Ir a calculadora</Text>
         </TouchableOpacity>
@@ -171,13 +174,13 @@ export default function HomeScreen() {
         return (
           <TouchableOpacity
             key={subject.id}
-            style={styles.subjectOverviewCard}
+            style={[styles.subjectOverviewCard, { backgroundColor: colors.card, borderColor: colors.border }]}
             onPress={() => router.push('/(tabs)/subjects')}>
             <View style={styles.subjectOverviewLeft}>
               <View style={[styles.colorBar, { backgroundColor: subject.color }]} />
               <View>
-                <Text style={styles.subjectOverviewName}>{subject.name}</Text>
-                <Text style={styles.subjectOverviewSub}>
+                <Text style={[styles.subjectOverviewName, { color: colors.text }]}>{subject.name}</Text>
+                <Text style={[styles.subjectOverviewSub, { color: colors.subText }]}>
                   {sim.totalEvaluatedWeight}% evaluado | Acumulado:{' '}
                   <Text style={{ fontWeight: '700', color: subject.color }}>
                     {sim.currentAccumulatedGrade.toFixed(2)}
@@ -187,7 +190,7 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.subjectOverviewRight}>
-              <Text style={styles.reqAverageLabel}>Falta para pasar:</Text>
+              <Text style={[styles.reqAverageLabel, { color: colors.mutedText }]}>Falta para pasar:</Text>
               <Text
                 style={[
                   styles.reqAverageValue,

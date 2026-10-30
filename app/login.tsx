@@ -14,10 +14,13 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase, isSupabaseConfigured } from '../src/services/supabase';
 import { useAppStore } from '../src/store/useAppStore';
+import { useThemeColors } from '../src/utils/theme';
 
 export default function LoginScreen() {
   const router = useRouter();
   const fetchData = useAppStore((state) => state.fetchData);
+  const colors = useThemeColors();
+  const isDark = colors.isDark;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -60,31 +63,33 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}>
+      style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.headerContainer}>
-          <View style={styles.iconContainer}>
+          <View style={[styles.iconContainer, isDark && { backgroundColor: '#1E1B4B' }]}>
             <Ionicons name="school" size={40} color="#4F46E5" />
           </View>
-          <Text style={styles.title}>¡Bienvenido de nuevo!</Text>
-          <Text style={styles.subtitle}>Inicia sesión para sincronizar tus notas y tareas con Supabase</Text>
+          <Text style={[styles.title, { color: colors.text }]}>¡Bienvenido de nuevo!</Text>
+          <Text style={[styles.subtitle, { color: colors.subText }]}>Inicia sesión para sincronizar tus notas y tareas con Supabase</Text>
         </View>
 
-        <View style={styles.formCard}>
-          <Text style={styles.label}>Correo Electrónico</Text>
+        <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.label, { color: colors.subText }]}>Correo Electrónico</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBg, color: colors.inputText, borderColor: colors.inputBorder }]}
             placeholder="tu@correo.com"
+            placeholderTextColor={colors.mutedText}
             keyboardType="email-address"
             autoCapitalize="none"
             value={email}
             onChangeText={setEmail}
           />
 
-          <Text style={styles.label}>Contraseña</Text>
+          <Text style={[styles.label, { color: colors.subText }]}>Contraseña</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBg, color: colors.inputText, borderColor: colors.inputBorder }]}
             placeholder="••••••••"
+            placeholderTextColor={colors.mutedText}
             secureTextEntry
             value={password}
             onChangeText={setPassword}
@@ -98,7 +103,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           <View style={styles.footerRow}>
-            <Text style={styles.footerText}>¿No tienes una cuenta?</Text>
+            <Text style={[styles.footerText, { color: colors.subText }]}>¿No tienes una cuenta?</Text>
             <TouchableOpacity onPress={() => router.push('/signup' as any)}>
               <Text style={styles.linkText}> Regístrate</Text>
             </TouchableOpacity>
@@ -107,7 +112,7 @@ export default function LoginScreen() {
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.replace('/(tabs)')}>
-            <Text style={styles.backButtonText}>Continuar sin iniciar sesión (Modo Local)</Text>
+            <Text style={[styles.backButtonText, { color: colors.subText }]}>Continuar sin iniciar sesión (Modo Local)</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

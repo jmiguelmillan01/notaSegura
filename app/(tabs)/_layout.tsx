@@ -4,13 +4,12 @@ import { Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../../src/store/useAppStore';
 import { OnboardingModal } from '../../components/OnboardingModal';
-import { useColorScheme } from '../../components/useColorScheme';
+import { useThemeColors } from '../../src/utils/theme';
 
 export default function TabLayout() {
   const { profile } = useAppStore();
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const colors = useThemeColors();
 
   useEffect(() => {
     // Si no tiene nombre definido en el perfil, mostrar Onboarding
@@ -33,24 +32,24 @@ export default function TabLayout() {
             height: 60,
             paddingBottom: 8,
             paddingTop: 6,
-            backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-            borderTopColor: isDark ? '#374151' : '#E5E7EB',
+            backgroundColor: colors.tabBarBg,
+            borderTopColor: colors.border,
           },
           tabBarLabelStyle: {
             fontSize: 12,
             fontWeight: '600',
           },
           headerStyle: {
-            backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+            backgroundColor: colors.headerBg,
             shadowColor: 'transparent',
             elevation: 0,
             borderBottomWidth: 1,
-            borderBottomColor: isDark ? '#374151' : '#F3F4F6',
+            borderBottomColor: colors.border,
           },
           headerTitleStyle: {
             fontWeight: '700',
             fontSize: 18,
-            color: isDark ? '#F9FAFB' : '#111827',
+            color: colors.text,
           },
         }}>
         <Tabs.Screen
