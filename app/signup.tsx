@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase, isSupabaseConfigured } from '../src/services/supabase';
 import { useAppStore } from '../src/store/useAppStore';
+import LegalModal from '../components/LegalModal';
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -25,6 +26,8 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [legalModalVisible, setLegalModalVisible] = useState(false);
+  const [legalType, setLegalType] = useState<'privacy' | 'terms'>('privacy');
 
   const handleSignup = async () => {
     if (!fullName.trim() || !email.trim() || !password.trim()) {
@@ -137,13 +140,19 @@ export default function SignupScreen() {
               Acepto los{' '}
               <Text
                 style={styles.termsLink}
-                onPress={() => Linking.openURL('https://tusitio.com/terminos')}>
+                onPress={() => {
+                  setLegalType('terms');
+                  setLegalModalVisible(true);
+                }}>
                 Términos y Condiciones
               </Text>{' '}
               y la{' '}
               <Text
                 style={styles.termsLink}
-                onPress={() => Linking.openURL('https://tusitio.com/privacidad')}>
+                onPress={() => {
+                  setLegalType('privacy');
+                  setLegalModalVisible(true);
+                }}>
                 Política de Privacidad
               </Text>
             </Text>
@@ -170,6 +179,11 @@ export default function SignupScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      <LegalModal
+        visible={legalModalVisible}
+        type={legalType}
+        onClose={() => setLegalModalVisible(false)}
+      />
     </KeyboardAvoidingView>
   );
 }

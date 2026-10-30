@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../../src/store/useAppStore';
 import { supabase, isSupabaseConfigured } from '../../src/services/supabase';
+import LegalModal from '../../components/LegalModal';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -29,6 +30,8 @@ export default function ProfileScreen() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [legalModalVisible, setLegalModalVisible] = useState(false);
+  const [legalType, setLegalType] = useState<'privacy' | 'terms'>('privacy');
 
   useEffect(() => {
     if (isSupabaseConfigured()) {
@@ -273,13 +276,19 @@ export default function ProfileScreen() {
          <Text style={styles.sectionTitle}>Legal e Información</Text>
          <TouchableOpacity
            style={styles.legalButton}
-           onPress={() => Linking.openURL('https://tusitio.com/privacidad')}>
+           onPress={() => {
+             setLegalType('privacy');
+             setLegalModalVisible(true);
+           }}>
            <Ionicons name="shield-checkmark-outline" size={18} color="#4F46E5" />
            <Text style={styles.legalButtonText}>Ver Política de Privacidad</Text>
          </TouchableOpacity>
          <TouchableOpacity
            style={styles.legalButton}
-           onPress={() => Linking.openURL('https://tusitio.com/terminos')}>
+           onPress={() => {
+             setLegalType('terms');
+             setLegalModalVisible(true);
+           }}>
            <Ionicons name="document-text-outline" size={18} color="#4F46E5" />
            <Text style={styles.legalButtonText}>Ver Términos y Condiciones</Text>
          </TouchableOpacity>
@@ -327,6 +336,11 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
+      <LegalModal
+        visible={legalModalVisible}
+        type={legalType}
+        onClose={() => setLegalModalVisible(false)}
+      />
     </ScrollView>
   );
 }
