@@ -15,10 +15,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../../src/store/useAppStore';
 import { supabase, isSupabaseConfigured } from '../../src/services/supabase';
 import LegalModal from '../../components/LegalModal';
+import { useColorScheme } from '../../components/useColorScheme';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { profile, updateProfile, subjects, clearStore, theme, setTheme } = useAppStore();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  const dynamicStyles = {
+    container: { backgroundColor: isDark ? '#111827' : '#F9FAFB' },
+    card: { backgroundColor: isDark ? '#1F2937' : '#FFFFFF', borderColor: isDark ? '#374151' : '#E5E7EB' },
+    text: { color: isDark ? '#F9FAFB' : '#111827' },
+    subText: { color: isDark ? '#9CA3AF' : '#6B7280' },
+    input: { backgroundColor: isDark ? '#374151' : '#F9FAFB', color: isDark ? '#FFFFFF' : '#111827', borderColor: isDark ? '#4B5563' : '#D1D5DB' },
+    label: { color: isDark ? '#D1D5DB' : '#374151' },
+  };
 
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [institution, setInstitution] = useState(profile?.institution || '');
@@ -168,48 +180,52 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <View style={styles.headerCard}>
+    <ScrollView style={[styles.container, dynamicStyles.container]} contentContainerStyle={styles.contentContainer}>
+      <View style={[styles.headerCard, dynamicStyles.card]}>
         <View style={styles.avatarContainer}>
           <Ionicons name="person" size={36} color="#4F46E5" />
         </View>
-        <Text style={styles.profileName}>{fullName || 'Estudiante NotaSegura'}</Text>
-        <Text style={styles.profileEmail}>
+        <Text style={[styles.profileName, dynamicStyles.text]}>{fullName || 'Estudiante NotaSegura'}</Text>
+        <Text style={[styles.profileEmail, dynamicStyles.subText]}>
           {userEmail ? `${userEmail} • ` : ''}{institution ? `${institution} • ` : ''}{major || 'Gestión Académica'}
         </Text>
       </View>
 
-      <View style={styles.formCard}>
-        <Text style={styles.sectionTitle}>Información Personal</Text>
+      <View style={[styles.formCard, dynamicStyles.card]}>
+        <Text style={[styles.sectionTitle, dynamicStyles.text]}>Información Personal</Text>
 
-        <Text style={styles.inputLabel}>Nombre Completo *</Text>
+        <Text style={[styles.inputLabel, dynamicStyles.label]}>Nombre Completo *</Text>
         <TextInput
-          style={styles.textInput}
+          style={[styles.textInput, dynamicStyles.input]}
           placeholder="Tu nombre"
+          placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
           value={fullName}
           onChangeText={setFullName}
         />
 
-        <Text style={styles.inputLabel}>Institución Educativa / Universidad</Text>
+        <Text style={[styles.inputLabel, dynamicStyles.label]}>Institución Educativa / Universidad</Text>
         <TextInput
-          style={styles.textInput}
+          style={[styles.textInput, dynamicStyles.input]}
           placeholder="Ej: Universidad Nacional"
+          placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
           value={institution}
           onChangeText={setInstitution}
         />
 
-        <Text style={styles.inputLabel}>Carrera / Grado</Text>
+        <Text style={[styles.inputLabel, dynamicStyles.label]}>Carrera / Grado</Text>
         <TextInput
-          style={styles.textInput}
+          style={[styles.textInput, dynamicStyles.input]}
           placeholder="Ej: Ingeniería de Sistemas"
+          placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
           value={major}
           onChangeText={setMajor}
         />
 
-        <Text style={styles.inputLabel}>Biografía / Metas Académicas</Text>
+        <Text style={[styles.inputLabel, dynamicStyles.label]}>Biografía / Metas Académicas</Text>
         <TextInput
-          style={[styles.textInput, styles.textArea]}
+          style={[styles.textInput, styles.textArea, dynamicStyles.input]}
           placeholder="Ej: Mantener promedio superior a 4.0 este semestre..."
+          placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
           multiline
           numberOfLines={3}
           value={bio}
@@ -221,12 +237,12 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.actionsCard}>
+      <View style={[styles.actionsCard, dynamicStyles.card]}>
         <View style={styles.actionRowInfo}>
-          <Ionicons name="archive-outline" size={20} color="#4B5563" />
+          <Ionicons name="archive-outline" size={20} color={isDark ? '#9CA3AF' : '#4B5563'} />
           <View style={{ marginLeft: 12, flex: 1 }}>
-            <Text style={styles.actionTitle}>Historial de Materias</Text>
-            <Text style={styles.actionSub}>
+            <Text style={[styles.actionTitle, dynamicStyles.text]}>Historial de Materias</Text>
+            <Text style={[styles.actionSub, dynamicStyles.subText]}>
               {archivedSubjectsCount} materia(s) archivada(s) en la papelera
             </Text>
           </View>
@@ -234,7 +250,7 @@ export default function ProfileScreen() {
 
         {isSupabaseConfigured() && !session ? (
           <View style={{ gap: 10, marginTop: 4 }}>
-            <Text style={{ fontSize: 13, color: '#6B7280', textAlign: 'center', marginBottom: 4 }}>
+            <Text style={{ fontSize: 13, color: isDark ? '#9CA3AF' : '#6B7280', textAlign: 'center', marginBottom: 4 }}>
               Inicia sesión o regístrate para sincronizar tus datos en Supabase.
             </Text>
             <TouchableOpacity
@@ -272,8 +288,8 @@ export default function ProfileScreen() {
          )}
        </View>
 
-       <View style={styles.actionsCard}>
-         <Text style={styles.sectionTitle}>Apariencia</Text>
+       <View style={[styles.actionsCard, dynamicStyles.card]}>
+         <Text style={[styles.sectionTitle, dynamicStyles.text]}>Apariencia</Text>
          <View style={styles.themeRow}>
            <TouchableOpacity
              style={[styles.themeBtn, theme === 'light' && styles.themeBtnActive]}
@@ -296,8 +312,8 @@ export default function ProfileScreen() {
          </View>
        </View>
 
-       <View style={styles.actionsCard}>
-         <Text style={styles.sectionTitle}>Legal e Información</Text>
+       <View style={[styles.actionsCard, dynamicStyles.card]}>
+         <Text style={[styles.sectionTitle, dynamicStyles.text]}>Legal e Información</Text>
          <TouchableOpacity
            style={styles.legalButton}
            onPress={() => {
@@ -316,7 +332,7 @@ export default function ProfileScreen() {
            <Ionicons name="document-text-outline" size={18} color="#4F46E5" />
            <Text style={styles.legalButtonText}>Ver Términos y Condiciones</Text>
          </TouchableOpacity>
-         <Text style={styles.disclaimerText}>
+         <Text style={[styles.disclaimerText, dynamicStyles.subText]}>
            Nota: Los cálculos del semáforo académico son proyecciones de referencia. El usuario es responsable de verificar sus notas oficiales con la institución.
          </Text>
        </View>
