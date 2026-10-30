@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +23,7 @@ export default function SignupScreen() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
@@ -32,6 +34,11 @@ export default function SignupScreen() {
 
     if (password.length < 6) {
       Alert.alert('Contraseña débil', 'La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+
+    if (!acceptedTerms) {
+      Alert.alert('Términos requeridos', 'Debes aceptar los Términos y Condiciones y la Política de Privacidad para registrarte.');
       return;
     }
 
@@ -120,8 +127,30 @@ export default function SignupScreen() {
             onChangeText={setPassword}
           />
 
+          <View style={styles.termsRow}>
+            <TouchableOpacity
+              style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}
+              onPress={() => setAcceptedTerms(!acceptedTerms)}>
+              {acceptedTerms && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+            </TouchableOpacity>
+            <Text style={styles.termsText}>
+              Acepto los{' '}
+              <Text
+                style={styles.termsLink}
+                onPress={() => Linking.openURL('https://tusitio.com/terminos')}>
+                Términos y Condiciones
+              </Text>{' '}
+              y la{' '}
+              <Text
+                style={styles.termsLink}
+                onPress={() => Linking.openURL('https://tusitio.com/privacidad')}>
+                Política de Privacidad
+              </Text>
+            </Text>
+          </View>
+
           <TouchableOpacity
-            style={[styles.button, loading && { opacity: 0.7 }]}
+            style={[styles.button, (loading || !acceptedTerms) && { opacity: 0.7 }]}
             onPress={handleSignup}
             disabled={loading}>
             <Text style={styles.buttonText}>{loading ? 'Registrando...' : 'Registrarse'}</Text>
@@ -243,5 +272,36 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#4B5563',
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#F9FAFB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  checkboxChecked: {
+    backgroundColor: '#4F46E5',
+    borderColor: '#4F46E5',
+  },
+  termsText: {
+    fontSize: 13,
+    color: '#4B5563',
+    flex: 1,
+    lineHeight: 18,
+  },
+  termsLink: {
+    color: '#4F46E5',
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
 });
