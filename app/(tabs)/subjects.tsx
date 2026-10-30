@@ -13,9 +13,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../../src/store/useAppStore';
 import { calculateSubjectGrades } from '../../src/services/gradesCalculator';
 import { Subject, Grade } from '../../src/types/database';
+import { useThemeColors } from '../../src/utils/theme';
 
 export default function SubjectsScreen() {
   const { subjects, grades, addGrade, updateGrade, deleteGrade, addSubject, updateSubject } = useAppStore();
+  const colors = useThemeColors();
+  const isDark = colors.isDark;
   
   // Filtrar materias activas (no archivadas)
   const activeSubjects = subjects.filter((s) => !s.is_archived);
@@ -228,7 +231,7 @@ export default function SubjectsScreen() {
   const badge = getStatusBadge();
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.contentContainer}>
       {/* Selector de Materias Horizontal */}
       <View style={styles.subjectsHeader}>
         <Text style={styles.sectionTitle}>Tus Materias</Text>

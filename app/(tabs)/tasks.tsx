@@ -17,9 +17,12 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAppStore } from '../../src/store/useAppStore';
 import { TaskPriority, Task, MediaItem } from '../../src/types/database';
 import { TaskCalendar } from '../../components/TaskCalendar';
+import { useThemeColors } from '../../src/utils/theme';
 
 export default function TasksScreen() {
   const { subjects, tasks, addTask, updateTask, toggleTaskCompleted, deleteTask } = useAppStore();
+  const colors = useThemeColors();
+  const isDark = colors.isDark;
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [filter, setFilter] = useState<'all' | 'pending' | 'logs' | 'completed'>('all');
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(
@@ -198,7 +201,7 @@ export default function TasksScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Toggle de Vistas: Lista vs Calendario */}
       <View style={styles.viewToggleContainer}>
         <TouchableOpacity
