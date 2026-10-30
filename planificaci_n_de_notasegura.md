@@ -103,10 +103,6 @@ Para asegurar un desarrollo ágil y compatible con iOS y Android, utilizaremos e
 | **Media**    | `id`, `task_id`, `file_url`, `type` (audio/img)                  | Vinculada a **Tasks**.    |
 | **Grades**   | `id`, `subject_id`, `name`, `weight_%`, `grade`                | Vinculada a **Subjects**. |
 
-
-
-
-
 # Actualización de Requerimientos: NotaSegura (Modificaciones)
 
 Este documento detalla las modificaciones y nuevas características solicitadas para los módulos de la aplicación, mejorando la flexibilidad en la gestión de tareas y el cálculo de notas.
@@ -267,10 +263,13 @@ La pantalla de inicio (`app/(tabs)/index.tsx` o similar) debe mostrar un saludo 
 **Especificaciones de Interfaz y Lógica:**
 
 * **Estado Global / Contexto:**
+
   * Si se está usando una tienda global (como Zustand, Redux o React Context) para la sesión, asegurar que el `full_name` del usuario esté disponible allí una vez que inicie sesión o lo actualice en su Perfil.
 * **Consulta Directa (Alternativa):**
+
   * Si no hay estado global, crear un `useEffect` en la pantalla principal que haga un `SELECT full_name FROM profiles WHERE id = user.id` al montar el componente.
 * **Renderizado (UI):**
+
   * En el encabezado de la pantalla principal, reemplazar el texto estático por: `¡Hola, {userName || 'Estudiante'}!`
   * Asegurar que el cambio sea reactivo: si el usuario va a la pestaña Perfil, cambia su nombre a "María", y vuelve a la pantalla principal, el texto debe actualizarse inmediatamente a "¡Hola, María!".antalla de "Historial de Materias" mencionada en el punto 1.
 
@@ -297,9 +296,11 @@ La pantalla de inicio (`app/(tabs)/index.tsx` o similar) debe mostrar un saludo 
 
 * **Objetivo:** Mostrar la información de vinculación de la cuenta y permitir cambios de credenciales de forma segura.
 * **Interfaz de Usuario (UI) en Perfil:**
+
   * Obtener y renderizar el correo electrónico del usuario actual (extraído de `supabase.auth.getUser()`) debajo del nombre (ej. "juan@email.com").
   * Agregar un botón visible: "Cambiar Contraseña".
 * **Lógica de Datos (Supabase Auth):**
+
   * Al presionar "Cambiar Contraseña", ejecutar la función `supabase.auth.resetPasswordForEmail(email)`.
   * Mostrar un `Alert` informando al usuario: "Se ha enviado un enlace a tu correo para restablecer la contraseña".
 
@@ -336,12 +337,15 @@ La pantalla de inicio (`app/(tabs)/index.tsx` o similar) debe mostrar un saludo 
 
 * **Objetivo:** Proveer un flujo completo de autenticación con Supabase Auth (Registro e Inicio de sesión) y resolver restricciones de esquemas en la base de datos (RLS y restricciones NOT NULL).
 * **Pantallas de Autenticación (`app/login.tsx` y `app/signup.tsx`):**
+
   * Creación de formularios modernos para Registrarse (`supabase.auth.signUp`) e Iniciar Sesión (`supabase.auth.signInWithPassword`), permitiendo asociar sesiones reales y cumplir con las políticas RLS de Supabase.
   * Opciones para continuar en modo local si no se desea iniciar sesión.
 * **Integración en Perfil (`app/(tabs)/profile.tsx`):**
+
   * Visualización del correo del usuario conectado.
   * Botones dinámicos para Iniciar Sesión, Registrarse o Cerrar Sesión.
 * **Corrección en `useAppStore.ts` (Profiles Upsert):**
+
   * Inclusión del campo `email: session.user.email` en las operaciones de `.upsert()` para la tabla `profiles`, previniendo errores de violación de restricción `NOT NULL` en la base de datos al actualizar el perfil.
 
   # Actualización NotaSegura: Edición, Filtros, Seguridad y Autenticación Completa
@@ -380,9 +384,62 @@ Este documento detalla las modificaciones para hacer la aplicación más funcion
 
 * **Objetivo:** Proveer un flujo de autenticación robusto, prevenir errores RLS y fugas de memoria al cerrar sesión.
 * **Pantallas de Autenticación (`app/login.tsx` y `app/signup.tsx`):**
+
   * Formularios para Registrarse (`supabase.auth.signUp`) e Iniciar Sesión (`supabase.auth.signInWithPassword`).
   * **Validaciones:** Mostrar alerta de error si la contraseña de registro tiene menos de 6 caracteres.
   * **Modo Local (Anónimo):** Si el usuario elige "Continuar sin cuenta", utilizar el "Inicio de Sesión Anónimo" (`supabase.auth.signInAnonymously()`). Esto genera un `user_id` temporal para cumplir con las políticas RLS y permite escalar la cuenta a permanente después.
 * **Gestión de Estado (useAppStore.ts) y Seguridad:**
+
   * **Upsert de Perfiles:** Incluir el campo `email: session.user.email` en las operaciones `.upsert()` de la tabla `profiles` para prevenir errores de violación `NOT NULL`.
   * **Limpieza de Sesión:** Al ejecutar `supabase.auth.signOut()`, disparar una función `clearStore()` que vacíe los arrays de `subjects`, `tasks`, `grades` y `profile` de la memoria local, evitando que otro usuario vea datos cacheados en el mismo dispositivo.
+
+  # Actualización NotaSegura: Edición, Filtros, Seguridad y Autenticación Completa
+
+  Este documento detalla las modificaciones para hacer la aplicación más funcional, robusta y segura, cubriendo la edición de materias, el impacto global del archivo, y un flujo de autenticación completo (incluyendo modo local seguro).
+
+  ## 1. Modificación de Materias Existentes
+
+  * **Objetivo:** Permitir al usuario editar el nombre (y código) de una materia previamente creada.
+  * **Interfaz de Usuario (UI) y Validaciones:**
+
+    * Añadir un botón de "Editar" (ícono de lápiz) junto al botón de eliminar/archivar en la lista de materias (`app/(tabs)/subjects.tsx`).
+    * Al presionar, abrir un Modal prellenado con el nombre y código actual de la materia.
+    * **Validación:** Bloquear el botón de "Guardar" si el campo de nombre está vacío.
+  * **Lógica de Datos (Supabase):**
+
+    * Ejecutar un `UPDATE` en la tabla `subjects` modificando las columnas `name` y `code` donde el `id` coincida.
+    * Refrescar el estado local inmediatamente para reflejar el cambio en la pantalla.
+
+  ## 2. Filtro de Materias Archivadas (Semáforo y Calendario)
+
+  * **Objetivo:** Evitar que las materias enviadas a la papelera (historial) afecten los cálculos o sigan mostrando tareas pendientes.
+  * **Lógica de Datos (Efecto Cascada):**
+
+    * **Semáforo:** En la consulta y mapeo de materias en la pantalla principal (`app/(tabs)/index.tsx`), filtrar explícitamente `activeSubjects = subjects.filter(s => !s.is_archived)`. El cálculo de promedios debe ignorar los registros archivados.
+    * **Calendario y Tareas:** Aplicar el filtro de exclusión de materias archivadas en las consultas de la tabla `tasks`. Las tareas que pertenezcan a una materia con `is_archived = true` **no deben** renderizarse en el `TaskCalendar` ni disparar notificaciones push.
+
+  ## 3. Cambio de Contraseña mediante Código (OTP) en la App
+
+  * **Objetivo:** Permitir al usuario solicitar un cambio de contraseña y validarlo introduciendo un código numérico (OTP) directamente en la app, sin necesidad de enlaces externos.
+  * **Interfaz de Usuario (UI):**
+
+    * **En Perfil:** Mostrar el correo actual (`supabase.auth.getUser()`) y un botón "Solicitar Cambio de Contraseña". Al presionarlo, llevar al usuario a una nueva pantalla.
+    * **Pantalla de Recuperación (`app/reset-password.tsx`):** Mostrar un formulario con dos campos: "Código de Verificación (6 dígitos)" y "Nueva Contraseña".
+  * **Lógica de Datos (Supabase Auth - Flujo OTP):**
+
+    * **Paso 1 (Enviar):** Al presionar el botón en el perfil, ejecutar `supabase.auth.resetPasswordForEmail(email)`. *(Nota para configuración: En el panel de Supabase > Authentication > Email Templates > Recovery, asegurarse de incluir `{{ .Token }}` en el texto del correo para que envíe el código).*
+    * **Paso 2 (Verificar):** En la pantalla de recuperación, al enviar el formulario, ejecutar `supabase.auth.verifyOtp({ email, token: codigoIngresado, type: 'recovery' })`.
+    * **Paso 3 (Actualizar):** Si el código es correcto (la promesa se resuelve exitosamente), ejecutar inmediatamente `supabase.auth.updateUser({ password: nuevaContrasena })` y mostrar alerta de éxito.
+
+  ## 4. Implementación de Autenticación, Perfil y Modo Local Seguro
+
+  * **Objetivo:** Proveer un flujo de autenticación robusto, prevenir errores RLS y fugas de memoria al cerrar sesión.
+  * **Pantallas de Autenticación (`app/login.tsx` y `app/signup.tsx`):**
+
+    * Formularios para Registrarse (`supabase.auth.signUp`) e Iniciar Sesión (`supabase.auth.signInWithPassword`).
+    * **Validaciones:** Mostrar alerta de error si la contraseña de registro tiene menos de 6 caracteres.
+    * **Modo Local (Anónimo):** Si el usuario elige "Continuar sin cuenta", utilizar el "Inicio de Sesión Anónimo" (`supabase.auth.signInAnonymously()`). Esto genera un `user_id` temporal para cumplir con las políticas RLS y permite escalar la cuenta a permanente después.
+  * **Gestión de Estado (useAppStore.ts) y Seguridad:**
+
+    * **Upsert de Perfiles:** Incluir el campo `email: session.user.email` en las operaciones `.upsert()` de la tabla `profiles` para prevenir errores de violación `NOT NULL`.
+    * **Limpieza de Sesión:** Al ejecutar `supabase.auth.signOut()`, disparar una función `clearStore()` que vacíe los arrays de `subjects`, `tasks`, `grades` y `profile` de la memoria local, evitando que otro usuario vea datos cacheados en el mismo dispositivo.

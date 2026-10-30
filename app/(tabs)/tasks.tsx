@@ -11,6 +11,7 @@ import {
   Image,
   Platform,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -20,6 +21,7 @@ import { TaskCalendar } from '../../components/TaskCalendar';
 import { useThemeColors } from '../../src/utils/theme';
 
 export default function TasksScreen() {
+  const router = useRouter();
   const { subjects, tasks, addTask, updateTask, toggleTaskCompleted, deleteTask } = useAppStore();
   const colors = useThemeColors();
   const isDark = colors.isDark;
@@ -101,7 +103,7 @@ export default function TasksScreen() {
     setEditingTaskId(null);
     setTitle('');
     setNotes('');
-    setSelectedSubjectId(subjects.length > 0 ? subjects[0].id : '');
+    setSelectedSubjectId('');
     setPriority('medium');
     setIsClassLog(false);
     setDueDate(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000));
@@ -113,7 +115,7 @@ export default function TasksScreen() {
     setEditingTaskId(task.id);
     setTitle(task.title);
     setNotes(task.notes || '');
-    setSelectedSubjectId(task.subject_id);
+    setSelectedSubjectId(task.subject_id || '');
     setPriority(task.priority);
     setIsClassLog(task.is_class_log);
     setDueDate(task.due_date ? new Date(task.due_date) : new Date());
@@ -124,11 +126,6 @@ export default function TasksScreen() {
   const handleSaveTask = async () => {
     if (!title.trim()) {
       Alert.alert('Campo requerido', 'Por favor ingresa un título para la tarea o bitácora.');
-      return;
-    }
-
-    if (!selectedSubjectId) {
-      Alert.alert('Materia requerida', 'Selecciona la materia correspondiente.');
       return;
     }
 
@@ -148,7 +145,7 @@ export default function TasksScreen() {
       await updateTask(
         editingTaskId,
         {
-          subject_id: selectedSubjectId,
+          subject_id: selectedSubjectId || undefined,
           title: title.trim(),
           notes: notes.trim() || undefined,
           due_date: dueDate.toISOString(),
@@ -161,7 +158,7 @@ export default function TasksScreen() {
     } else {
       await addTask(
         {
-          subject_id: selectedSubjectId,
+          subject_id: selectedSubjectId || undefined,
           title: title.trim(),
           notes: notes.trim() || undefined,
           due_date: dueDate.toISOString(),
@@ -191,44 +188,60 @@ export default function TasksScreen() {
   const getPriorityBadge = (p: TaskPriority) => {
     switch (p) {
       case 'high':
-        return { label: 'Alta', color: '#DC2626', bg: '#FEE2E2', alerts: 'Alertas: 7, 3 y 1d' };
+        return {
+          label: 'Alta',
+          color: isDark ? '#FCA5A5' : '#DC2626',
+          bg: isDark ? '#7F1D1D' : '#FEE2E2',
+          alerts: 'Alertas: 7, 3 y 1d'
+        };
       case 'medium':
-        return { label: 'Media', color: '#D97706', bg: '#FEF3C7', alerts: 'Alertas: 3 y 1d' };
+        return {
+          label: 'Media',
+          color: isDark ? '#FCD34D' : '#D97706',
+          bg: isDark ? '#78350F' : '#FEF3C7',
+          alerts: 'Alertas: 3 y 1d'
+        };
       case 'low':
       default:
-        return { label: 'Baja', color: '#059669', bg: '#D1FAE5', alerts: 'Alerta: 1d' };
+        return {
+          label: 'Baja',
+          color: isDark ? '#34D399' : '#059669',
+          bg: isDark ? '#064E3B' : '#D1FAE5',
+          alerts: 'Alerta: 1d'
+        };
     }
   };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Toggle de Vistas: Lista vs Calendario */}
-      <View style={styles.viewToggleContainer}>
+      <View style={[styles.viewToggleContainer, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity
-          style={[styles.viewToggleBtn, viewMode === 'list' && styles.viewToggleBtnActive]}
+          style={[styles.viewToggleBtn, { backgroundColor: isDark ? colors.innerCard : '#F3F4F6' }, viewMode === 'list' && styles.viewToggleBtnActive]}
           onPress={() => setViewMode('list')}>
           <Ionicons
             name="list-outline"
             size={18}
-            color={viewMode === 'list' ? '#FFFFFF' : '#4B5563'}
+            color={viewMode === 'list' ? '#FFFFFF' : colors.subText}
           />
           <Text
-            style={[styles.viewToggleText, viewMode === 'list' && styles.viewToggleTextActive]}>
+            style={[styles.viewToggleText, { color: colors.subText }, viewMode === 'list' && styles.viewToggleTextActive]}>
             Vista de Lista
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.viewToggleBtn, viewMode === 'calendar' && styles.viewToggleBtnActive]}
+          style={[styles.viewToggleBtn, { backgroundColor: isDark ? colors.innerCard : '#F3F4F6' }, viewMode === 'calendar' && styles.viewToggleBtnActive]}
           onPress={() => setViewMode('calendar')}>
           <Ionicons
             name="calendar-outline"
             size={18}
-            color={viewMode === 'calendar' ? '#FFFFFF' : '#4B5563'}
+            color={viewMode === 'calendar' ? '#FFFFFF' : colors.subText}
           />
           <Text
             style={[
               styles.viewToggleText,
+              { color: colors.subText },
               viewMode === 'calendar' && styles.viewToggleTextActive,
             ]}>
             Vista de Calendario
@@ -238,7 +251,7 @@ export default function TasksScreen() {
 
       {/* Barra de Filtros (Solo visible en Vista de Lista) */}
       {viewMode === 'list' && (
-        <View style={styles.filterBar}>
+        <View style={[styles.filterBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {(
               [
@@ -250,11 +263,16 @@ export default function TasksScreen() {
             ).map((item) => (
               <TouchableOpacity
                 key={item.id}
-                style={[styles.filterChip, filter === item.id && styles.filterChipActive]}
+                style={[
+                  styles.filterChip,
+                  { backgroundColor: isDark ? colors.innerCard : '#F3F4F6', borderColor: colors.border, borderWidth: isDark ? 1 : 0 },
+                  filter === item.id && styles.filterChipActive
+                ]}
                 onPress={() => setFilter(item.id)}>
                 <Text
                   style={[
                     styles.filterChipText,
+                    { color: colors.subText },
                     filter === item.id && styles.filterChipTextActive,
                   ]}>
                   {item.label}
@@ -275,7 +293,7 @@ export default function TasksScreen() {
               onSelectDate={(date) => setSelectedCalendarDate(date)}
             />
             <View style={styles.selectedDateHeader}>
-              <Text style={styles.selectedDateTitle}>
+              <Text style={[styles.selectedDateTitle, { color: colors.text }]}>
                 Tareas para el {selectedCalendarDate}
               </Text>
             </View>
@@ -284,11 +302,11 @@ export default function TasksScreen() {
 
         {displayedTasks.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="checkmark-done-circle-outline" size={54} color="#9CA3AF" />
-            <Text style={styles.emptyStateTitle}>
+            <Ionicons name="checkmark-done-circle-outline" size={54} color={colors.mutedText} />
+            <Text style={[styles.emptyStateTitle, { color: colors.text }]}>
               {viewMode === 'calendar' ? 'No hay tareas para esta fecha' : 'No hay tareas aquí'}
             </Text>
-            <Text style={styles.emptyStateSubtitle}>
+            <Text style={[styles.emptyStateSubtitle, { color: colors.subText }]}>
               {viewMode === 'calendar'
                 ? 'Selecciona otro día en el calendario o crea una nueva tarea.'
                 : 'Crea una nueva tarea o registra un apunte de clase para mantener el ritmo.'}
@@ -309,7 +327,7 @@ export default function TasksScreen() {
               style={[
                 styles.taskCard,
                 task.is_completed && styles.taskCardCompleted,
-                { borderLeftColor: subject?.color || '#4F46E5' },
+                { backgroundColor: colors.card, borderColor: colors.border, borderLeftColor: subject?.color || colors.tint },
               ]}>
               <View style={styles.taskTopRow}>
                 <TouchableOpacity
@@ -318,7 +336,7 @@ export default function TasksScreen() {
                   <Ionicons
                     name={task.is_completed ? 'checkbox' : 'square-outline'}
                     size={22}
-                    color={task.is_completed ? '#10B981' : '#6B7280'}
+                    color={task.is_completed ? '#10B981' : colors.subText}
                   />
                 </TouchableOpacity>
 
@@ -332,9 +350,9 @@ export default function TasksScreen() {
                       </View>
                     )}
                     {task.is_class_log && (
-                      <View style={styles.logTag}>
-                        <Ionicons name="book-outline" size={12} color="#4F46E5" />
-                        <Text style={styles.logTagText}>Bitácora</Text>
+                      <View style={[styles.logTag, { backgroundColor: isDark ? colors.cardElevated : '#EEF2FF', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}>
+                        <Ionicons name="book-outline" size={12} color={colors.tint} />
+                        <Text style={[styles.logTagText, { color: colors.tint }]}>Bitácora</Text>
                       </View>
                     )}
                     <View style={[styles.priorityTag, { backgroundColor: pBadge.bg }]}>
@@ -347,7 +365,8 @@ export default function TasksScreen() {
                   <Text
                     style={[
                       styles.taskTitle,
-                      task.is_completed && styles.taskTitleCompleted,
+                      { color: colors.text },
+                      task.is_completed && { color: colors.mutedText, textDecorationLine: 'line-through' },
                     ]}>
                     {task.title}
                   </Text>
@@ -357,17 +376,17 @@ export default function TasksScreen() {
                   <TouchableOpacity
                     onPress={() => handleOpenEditModal(task)}
                     style={styles.deleteButton}>
-                    <Ionicons name="pencil-outline" size={18} color="#4F46E5" />
+                    <Ionicons name="pencil-outline" size={18} color={colors.tint} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => deleteTask(task.id)}
                     style={styles.deleteButton}>
-                    <Ionicons name="trash-outline" size={18} color="#9CA3AF" />
+                    <Ionicons name="trash-outline" size={18} color={colors.mutedText} />
                   </TouchableOpacity>
                 </View>
               </View>
 
-                {task.notes ? <Text style={styles.taskNotes}>{task.notes}</Text> : null}
+                {task.notes ? <Text style={[styles.taskNotes, { backgroundColor: isDark ? colors.innerCard : '#F9FAFB', color: colors.subText }]}>{task.notes}</Text> : null}
 
                 {/* Mostrar foto adjunta si tiene */}
                 {task.media && task.media.length > 0 && (
@@ -379,15 +398,15 @@ export default function TasksScreen() {
                   </View>
                 )}
 
-                <View style={styles.taskFooter}>
+                <View style={[styles.taskFooter, { borderTopColor: colors.border }]}>
                   <View style={styles.dueDateRow}>
-                    <Ionicons name="calendar-outline" size={14} color="#6B7280" />
-                    <Text style={styles.dueDateText}>Entrega: {dueDateFormatted}</Text>
+                    <Ionicons name="calendar-outline" size={14} color={colors.subText} />
+                    <Text style={[styles.dueDateText, { color: colors.subText }]}>Entrega: {dueDateFormatted}</Text>
                   </View>
 
                   <View style={styles.alertNotice}>
-                    <Ionicons name="notifications-outline" size={13} color="#4F46E5" />
-                    <Text style={styles.alertNoticeText}>{pBadge.alerts}</Text>
+                    <Ionicons name="notifications-outline" size={13} color={colors.tint} />
+                    <Text style={[styles.alertNoticeText, { color: colors.tint }]}>{pBadge.alerts}</Text>
                   </View>
                 </View>
               </View>
@@ -397,45 +416,62 @@ export default function TasksScreen() {
       </ScrollView>
 
       {/* Botón flotante para crear tarea o bitácora */}
-      <TouchableOpacity style={styles.fab} onPress={handleOpenCreateModal}>
+      <TouchableOpacity style={[styles.fab, { backgroundColor: colors.tint }]} onPress={handleOpenCreateModal}>
         <Ionicons name="add" size={28} color="#FFFFFF" />
       </TouchableOpacity>
 
       {/* Modal Nueva / Editar Tarea / Bitácora */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
                 {editingTaskId ? 'Editar Tarea o Bitácora' : 'Nueva Tarea o Bitácora'}
               </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#6B7280" />
+                <Ionicons name="close" size={24} color={colors.subText} />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
               {/* Opción Bitácora de Clase */}
               <TouchableOpacity
-                style={[styles.classLogToggle, isClassLog && styles.classLogToggleActive]}
+                style={[styles.classLogToggle, { backgroundColor: isDark ? colors.innerCard : '#F3F4F6', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }, isClassLog && styles.classLogToggleActive]}
                 onPress={() => setIsClassLog(!isClassLog)}>
                 <Ionicons
                   name={isClassLog ? 'checkmark-circle' : 'ellipse-outline'}
                   size={20}
-                  color={isClassLog ? '#4F46E5' : '#6B7280'}
+                  color={isClassLog ? colors.tint : colors.subText}
                 />
                 <Text
                   style={[
                     styles.classLogToggleText,
-                    isClassLog && styles.classLogToggleTextActive,
+                    { color: colors.subText },
+                    isClassLog && { color: colors.tint, fontWeight: '700' },
                   ]}>
                   Es un apunte/bitácora de clase (CU-01)
                 </Text>
               </TouchableOpacity>
 
               {/* Materia */}
-              <Text style={styles.inputLabel}>Selecciona Materia</Text>
+              <Text style={[styles.inputLabel, { color: colors.subText }]}>Selecciona Materia</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                <TouchableOpacity
+                  style={[
+                    styles.subjectSelectChip,
+                    { backgroundColor: isDark ? colors.innerCard : '#F3F4F6', borderColor: colors.border },
+                    selectedSubjectId === '' && { backgroundColor: colors.mutedText, borderColor: colors.mutedText },
+                  ]}
+                  onPress={() => setSelectedSubjectId('')}>
+                  <Text
+                    style={[
+                      styles.subjectSelectText,
+                      { color: colors.subText },
+                      selectedSubjectId === '' && { color: '#FFFFFF', fontWeight: '700' },
+                    ]}>
+                    Sin materia
+                  </Text>
+                </TouchableOpacity>
                 {activeSubjects.map((sub) => {
                   const isSel = sub.id === selectedSubjectId;
                   return (
@@ -443,12 +479,14 @@ export default function TasksScreen() {
                       key={sub.id}
                       style={[
                         styles.subjectSelectChip,
+                        { backgroundColor: isDark ? colors.innerCard : '#F3F4F6', borderColor: colors.border },
                         isSel && { backgroundColor: sub.color, borderColor: sub.color },
                       ]}
                       onPress={() => setSelectedSubjectId(sub.id)}>
                       <Text
                         style={[
                           styles.subjectSelectText,
+                          { color: colors.subText },
                           isSel && { color: '#FFFFFF', fontWeight: '700' },
                         ]}>
                         {sub.name}
@@ -459,23 +497,25 @@ export default function TasksScreen() {
               </ScrollView>
 
               {/* Título */}
-              <Text style={styles.inputLabel}>Título</Text>
+              <Text style={[styles.inputLabel, { color: colors.subText }]}>Título</Text>
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, { backgroundColor: colors.inputBg, color: colors.inputText, borderColor: colors.inputBorder }]}
                 placeholder={
                   isClassLog
                     ? 'Ej: Derivadas e integrales (Clase del 27 Oct)'
                     : 'Ej: Taller 2 de Física Mecánica'
                 }
+                placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
                 value={title}
                 onChangeText={setTitle}
               />
 
               {/* Apuntes / Notas */}
-              <Text style={styles.inputLabel}>Apuntes y Detalles</Text>
+              <Text style={[styles.inputLabel, { color: colors.subText }]}>Apuntes y Detalles</Text>
               <TextInput
-                style={[styles.textInput, styles.textArea]}
+                style={[styles.textInput, styles.textArea, { backgroundColor: colors.inputBg, color: colors.inputText, borderColor: colors.inputBorder }]}
                 placeholder="Escribe lo visto en clase o notas importantes de la entrega..."
+                placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
                 multiline
                 numberOfLines={3}
                 value={notes}
@@ -483,7 +523,7 @@ export default function TasksScreen() {
               />
 
               {/* Prioridad y Alertas (CU-02) */}
-              <Text style={styles.inputLabel}>Nivel de Prioridad (Alertas Automáticas)</Text>
+              <Text style={[styles.inputLabel, { color: colors.subText }]}>Nivel de Prioridad (Alertas Automáticas)</Text>
               <View style={styles.prioritySelector}>
                 {(['high', 'medium', 'low'] as const).map((p) => {
                   const b = getPriorityBadge(p);
@@ -493,28 +533,31 @@ export default function TasksScreen() {
                       key={p}
                       style={[
                         styles.priorityOption,
+                        { backgroundColor: isDark ? colors.cardElevated : '#FFFFFF', borderColor: colors.border },
                         isSel && { borderColor: b.color, backgroundColor: b.bg },
                       ]}
                       onPress={() => setPriority(p)}>
                       <Text
                         style={[
                           styles.priorityOptionText,
+                          { color: colors.subText },
                           isSel && { color: b.color, fontWeight: '700' },
                         ]}>
                         {b.label}
                       </Text>
-                      <Text style={styles.priorityOptionSub}>{b.alerts}</Text>
+                      <Text style={[styles.priorityOptionSub, { color: colors.mutedText }]}>{b.alerts}</Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
 
               {/* Selector de Fecha (DatePicker) */}
-              <Text style={styles.inputLabel}>Fecha de Vencimiento / Entrega</Text>
+              <Text style={[styles.inputLabel, { color: colors.subText }]}>Fecha de Vencimiento / Entrega</Text>
               {Platform.OS === 'web' ? (
                 <TextInput
-                  style={styles.textInput}
+                  style={[styles.textInput, { backgroundColor: colors.inputBg, color: colors.inputText, borderColor: colors.inputBorder }]}
                   placeholder="YYYY-MM-DD"
+                  placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
                   value={dueDate.toISOString().split('T')[0]}
                   onChangeText={(val) => {
                     const parsed = new Date(val);
@@ -526,10 +569,10 @@ export default function TasksScreen() {
               ) : (
                 <>
                   <TouchableOpacity
-                    style={styles.datePickerButton}
+                    style={[styles.datePickerButton, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
                     onPress={() => setShowDatePicker(true)}>
-                    <Ionicons name="calendar" size={18} color="#4F46E5" />
-                    <Text style={styles.datePickerButtonText}>
+                    <Ionicons name="calendar" size={18} color={colors.tint} />
+                    <Text style={[styles.datePickerButtonText, { color: colors.inputText }]}>
                       {dueDate.toLocaleDateString('es-ES', {
                         weekday: 'short',
                         year: 'numeric',
@@ -549,28 +592,23 @@ export default function TasksScreen() {
                           setDueDate(selectedDate);
                         }
                       }}
-                      onChange={(event, selectedDate) => {
-                        setShowDatePicker(false);
-                        if (selectedDate) {
-                          setDueDate(selectedDate);
-                        }
-                      }}
+                      onDismiss={() => setShowDatePicker(false)}
                     />
                   )}
                 </>
               )}
 
               {/* Multimedia (Fotos de Pizarrón / Audios) */}
-              <Text style={styles.inputLabel}>Adjuntar Evidencia (Pizarrón / Foto)</Text>
+              <Text style={[styles.inputLabel, { color: colors.subText }]}>Adjuntar Evidencia (Pizarrón / Foto)</Text>
               <View style={styles.mediaActionsRow}>
-                <TouchableOpacity style={styles.mediaBtn} onPress={takePhoto}>
-                  <Ionicons name="camera" size={18} color="#4F46E5" />
-                  <Text style={styles.mediaBtnText}>Tomar Foto</Text>
+                <TouchableOpacity style={[styles.mediaBtn, { backgroundColor: isDark ? colors.cardElevated : '#EEF2FF', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]} onPress={takePhoto}>
+                  <Ionicons name="camera" size={18} color={colors.tint} />
+                  <Text style={[styles.mediaBtnText, { color: colors.tint }]}>Tomar Foto</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.mediaBtn} onPress={pickImage}>
-                  <Ionicons name="images" size={18} color="#4F46E5" />
-                  <Text style={styles.mediaBtnText}>Galería</Text>
+                <TouchableOpacity style={[styles.mediaBtn, { backgroundColor: isDark ? colors.cardElevated : '#EEF2FF', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]} onPress={pickImage}>
+                  <Ionicons name="images" size={18} color={colors.tint} />
+                  <Text style={[styles.mediaBtnText, { color: colors.tint }]}>Galería</Text>
                 </TouchableOpacity>
               </View>
 
@@ -585,7 +623,7 @@ export default function TasksScreen() {
                 </View>
               )}
 
-              <TouchableOpacity style={styles.submitButton} onPress={handleSaveTask}>
+              <TouchableOpacity style={[styles.submitButton, { backgroundColor: colors.tint }]} onPress={handleSaveTask}>
                 <Text style={styles.submitButtonText}>
                   {editingTaskId
                     ? 'Guardar Cambios'

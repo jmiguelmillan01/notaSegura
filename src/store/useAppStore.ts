@@ -137,12 +137,18 @@ export const useAppStore = create<AppState>()(
   },
 
   addSubject: async (data) => {
-    let userId = '00000000-0000-0000-0000-000000000000';
+    let userId = '';
+    let sessionUser = null;
     if (isSupabaseConfigured()) {
       const { data: sessionData } = await supabase.auth.getSession();
       if (sessionData.session?.user) {
-        userId = sessionData.session.user.id;
+        sessionUser = sessionData.session.user;
+        userId = sessionUser.id;
       }
+    }
+
+    if (!sessionUser) {
+      throw new Error('Debes iniciar sesión en tu cuenta para registrar materias.');
     }
 
     const newSubPayload = {
@@ -156,39 +162,38 @@ export const useAppStore = create<AppState>()(
       is_archived: false,
     };
 
-    let createdSubject: Subject;
-
-    if (isSupabaseConfigured()) {
-      const { data: inserted, error } = await supabase
-        .from('subjects')
-        .insert([newSubPayload])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Supabase insert subject error:', error.message, error.details, error.hint);
-        // Generar ID local para que la app no se rompa si falla Supabase (fallback)
-        createdSubject = {
-          ...data,
-          id: generateUUID(),
-          user_id: userId,
-          is_archived: false,
-          created_at: new Date().toISOString(),
-        };
-      } else {
-        createdSubject = inserted;
-      }
-    } else {
-      createdSubject = {
-        ...data,
-        id: generateUUID(),
-        user_id: userId,
-        is_archived: false,
-        created_at: new Date().toISOString(),
-      };
-    }
+    const createdSubject: Subject = {
+      ...data,
+      id: generateUUID(),
+      user_id: userId,
+      is_archived: false,
+      created_at: new Date().toISOString(),
+    };
 
     set((state) => ({ subjects: [...state.subjects, createdSubject] }));
+
+    if (isSupabaseConfigured() && sessionUser) {
+      try {
+        const { data: inserted, error } = await supabase
+          .from('subjects')
+          .insert([newSubPayload])
+          .select()
+          .single();
+
+        if (error) {
+          console.warn('Supabase offline/sync subject error (saved locally):', error.message);
+        } else if (inserted) {
+          // Actualizar con el ID real o confirmado de Supabase si es necesario
+          set((state) => ({
+            subjects: state.subjects.map((s) => (s.id === createdSubject.id ? inserted : s)),
+          }));
+          return inserted;
+        }
+      } catch (err) {
+        console.warn('Network error saving subject to Supabase (saved locally):', err);
+      }
+    }
+
     return createdSubject;
   },
 
@@ -217,12 +222,18 @@ export const useAppStore = create<AppState>()(
   },
 
   addGrade: async (data) => {
-    let userId = '00000000-0000-0000-0000-000000000000';
+    let userId = '';
+    let sessionUser = null;
     if (isSupabaseConfigured()) {
       const { data: sessionData } = await supabase.auth.getSession();
       if (sessionData.session?.user) {
-        userId = sessionData.session.user.id;
+        sessionUser = sessionData.session.user;
+        userId = sessionUser.id;
       }
+    }
+
+    if (!sessionUser) {
+      throw new Error('Debes iniciar sesión en tu cuenta para registrar calificaciones.');
     }
 
     const payload = {
@@ -234,38 +245,34 @@ export const useAppStore = create<AppState>()(
       is_evaluated: data.is_evaluated,
     };
 
-    let newGrade: Grade;
-
-    if (isSupabaseConfigured()) {
-      const { data: inserted, error } = await supabase
-        .from('grades')
-        .insert([payload])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Supabase insert grade error:', error.message);
-      }
-      if (inserted) {
-        newGrade = inserted;
-      } else {
-        newGrade = {
-          ...data,
-          id: generateUUID(),
-          user_id: userId,
-          created_at: new Date().toISOString(),
-        };
-      }
-    } else {
-      newGrade = {
-        ...data,
-        id: generateUUID(),
-        user_id: userId,
-        created_at: new Date().toISOString(),
-      };
-    }
+    const newGrade: Grade = {
+      ...data,
+      id: generateUUID(),
+      user_id: userId,
+      created_at: new Date().toISOString(),
+    };
 
     set((state) => ({ grades: [...state.grades, newGrade] }));
+
+    if (isSupabaseConfigured() && sessionUser) {
+      try {
+        const { data: inserted, error } = await supabase
+          .from('grades')
+          .insert([payload])
+          .select()
+          .single();
+
+        if (error) {
+          console.warn('Supabase offline/sync grade error (saved locally):', error.message);
+        } else if (inserted) {
+          set((state) => ({
+            grades: state.grades.map((g) => (g.id === newGrade.id ? inserted : g)),
+          }));
+        }
+      } catch (err) {
+        console.warn('Network error saving grade to Supabase (saved locally):', err);
+      }
+    }
   },
 
   updateGrade: async (id, updates) => {
@@ -291,12 +298,18 @@ export const useAppStore = create<AppState>()(
   },
 
   addTask: async (data, media = []) => {
-    let userId = '00000000-0000-0000-0000-000000000000';
+    let userId = '';
+    let sessionUser = null;
     if (isSupabaseConfigured()) {
       const { data: sessionData } = await supabase.auth.getSession();
       if (sessionData.session?.user) {
-        userId = sessionData.session.user.id;
+        sessionUser = sessionData.session.user;
+        userId = sessionUser.id;
       }
+    }
+
+    if (!sessionUser) {
+      throw new Error('Debes iniciar sesión en tu cuenta para crear tareas y alertas.');
     }
 
     const payload = {
@@ -310,46 +323,15 @@ export const useAppStore = create<AppState>()(
       is_class_log: data.is_class_log,
     };
 
-    let newTask: Task;
-
-    if (isSupabaseConfigured()) {
-      const { data: inserted, error } = await supabase
-        .from('tasks')
-        .insert([payload])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Supabase insert task error:', error.message);
-      }
-      if (inserted) {
-        newTask = {
-          ...inserted,
-          media,
-          notification_ids: [],
-        };
-      } else {
-        newTask = {
-          ...data,
-          id: generateUUID(),
-          user_id: userId,
-          is_completed: false,
-          media,
-          notification_ids: [],
-          created_at: new Date().toISOString(),
-        };
-      }
-    } else {
-      newTask = {
-        ...data,
-        id: generateUUID(),
-        user_id: userId,
-        is_completed: false,
-        media,
-        notification_ids: [],
-        created_at: new Date().toISOString(),
-      };
-    }
+    let newTask: Task = {
+      ...data,
+      id: generateUUID(),
+      user_id: userId,
+      is_completed: false,
+      media,
+      notification_ids: [],
+      created_at: new Date().toISOString(),
+    };
 
     const subject = get().subjects.find((s) => s.id === data.subject_id);
     const subjectName = subject ? subject.name : 'Materia';
@@ -364,6 +346,29 @@ export const useAppStore = create<AppState>()(
     }
 
     set((state) => ({ tasks: [newTask, ...state.tasks] }));
+
+    if (isSupabaseConfigured() && sessionUser) {
+      try {
+        const { data: inserted, error } = await supabase
+          .from('tasks')
+          .insert([payload])
+          .select()
+          .single();
+
+        if (error) {
+          console.warn('Supabase offline/sync task error (saved locally):', error.message);
+        } else if (inserted) {
+          const syncedTask = { ...inserted, media, notification_ids: newTask.notification_ids };
+          set((state) => ({
+            tasks: state.tasks.map((t) => (t.id === newTask.id ? syncedTask : t)),
+          }));
+          newTask = syncedTask;
+        }
+      } catch (err) {
+        console.warn('Network error saving task to Supabase (saved locally):', err);
+      }
+    }
+
     return newTask;
   },
 

@@ -250,7 +250,7 @@ export default function ProfileScreen() {
 
         {isSupabaseConfigured() && !session ? (
           <View style={{ gap: 10, marginTop: 4 }}>
-            <Text style={{ fontSize: 13, color: isDark ? '#9CA3AF' : '#6B7280', textAlign: 'center', marginBottom: 4 }}>
+            <Text style={{ fontSize: 13, color: colors.subText, textAlign: 'center', marginBottom: 4 }}>
               Inicia sesión o regístrate para sincronizar tus datos en Supabase.
             </Text>
             <TouchableOpacity
@@ -260,29 +260,29 @@ export default function ProfileScreen() {
               <Text style={styles.signInText}>Iniciar Sesión</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.signUpBtn}
+              style={[styles.signUpBtn, { backgroundColor: isDark ? '#3F3F46' : '#EEF2FF', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}
               onPress={() => router.push('/signup' as any)}>
-              <Ionicons name="person-add-outline" size={18} color="#4F46E5" />
-              <Text style={styles.signUpText}>Registrarse</Text>
+              <Ionicons name="person-add-outline" size={18} color={isDark ? '#F3F4F6' : '#4F46E5'} />
+              <Text style={[styles.signUpText, { color: isDark ? '#F3F4F6' : '#4F46E5' }]}>Registrarse</Text>
             </TouchableOpacity>
           </View>
          ) : (
            <View style={{ gap: 10 }}>
              {isSupabaseConfigured() && (
                <>
-                 <TouchableOpacity style={styles.resetPasswordBtn} onPress={handleResetPassword}>
-                   <Ionicons name="key-outline" size={18} color="#4F46E5" />
-                   <Text style={styles.resetPasswordText}>Cambiar Contraseña</Text>
+                 <TouchableOpacity style={[styles.resetPasswordBtn, { backgroundColor: isDark ? '#3F3F46' : '#EEF2FF', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]} onPress={handleResetPassword}>
+                   <Ionicons name="key-outline" size={18} color={isDark ? '#F3F4F6' : '#4F46E5'} />
+                   <Text style={[styles.resetPasswordText, { color: isDark ? '#F3F4F6' : '#4F46E5' }]}>Cambiar Contraseña</Text>
                  </TouchableOpacity>
-                 <TouchableOpacity style={styles.deleteAccountButton} onPress={handleDeleteAccount}>
-                   <Ionicons name="trash-outline" size={18} color="#DC2626" />
-                   <Text style={styles.deleteAccountText}>Eliminar Cuenta Definitivamente</Text>
+                 <TouchableOpacity style={[styles.deleteAccountButton, { backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2', borderColor: isDark ? '#DC2626' : 'transparent', borderWidth: isDark ? 1 : 0 }]} onPress={handleDeleteAccount}>
+                   <Ionicons name="trash-outline" size={18} color={isDark ? '#FFFFFF' : '#DC2626'} />
+                   <Text style={[styles.deleteAccountText, isDark && { color: '#FFFFFF' }]}>Eliminar Cuenta Definitivamente</Text>
                  </TouchableOpacity>
                </>
              )}
-             <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-               <Ionicons name="log-out-outline" size={18} color="#DC2626" />
-               <Text style={styles.signOutText}>Cerrar Sesión</Text>
+             <TouchableOpacity style={[styles.signOutButton, { backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2', borderColor: isDark ? '#DC2626' : 'transparent', borderWidth: isDark ? 1 : 0 }]} onPress={handleSignOut}>
+               <Ionicons name="log-out-outline" size={18} color={isDark ? '#FFFFFF' : '#DC2626'} />
+               <Text style={[styles.signOutText, isDark && { color: '#FFFFFF' }]}>Cerrar Sesión</Text>
              </TouchableOpacity>
            </View>
          )}
@@ -292,22 +292,22 @@ export default function ProfileScreen() {
          <Text style={[styles.sectionTitle, dynamicStyles.text]}>Apariencia</Text>
          <View style={styles.themeRow}>
            <TouchableOpacity
-             style={[styles.themeBtn, theme === 'light' && styles.themeBtnActive]}
+             style={[styles.themeBtn, { backgroundColor: isDark ? '#3F3F46' : '#EEF2FF', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }, theme === 'light' && styles.themeBtnActive]}
              onPress={() => setTheme('light')}>
-             <Ionicons name="sunny" size={18} color={theme === 'light' ? '#FFFFFF' : '#4F46E5'} />
-             <Text style={[styles.themeBtnText, theme === 'light' && styles.themeBtnTextActive]}>Claro</Text>
+             <Ionicons name="sunny" size={18} color={theme === 'light' ? '#FFFFFF' : (isDark ? '#F3F4F6' : '#4F46E5')} />
+             <Text style={[styles.themeBtnText, { color: isDark ? '#F3F4F6' : '#4F46E5' }, theme === 'light' && styles.themeBtnTextActive]}>Claro</Text>
            </TouchableOpacity>
            <TouchableOpacity
-             style={[styles.themeBtn, theme === 'dark' && styles.themeBtnActive]}
+             style={[styles.themeBtn, { backgroundColor: isDark ? '#3F3F46' : '#EEF2FF', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }, theme === 'dark' && styles.themeBtnActive]}
              onPress={() => setTheme('dark')}>
-             <Ionicons name="moon" size={18} color={theme === 'dark' ? '#FFFFFF' : '#4F46E5'} />
-             <Text style={[styles.themeBtnText, theme === 'dark' && styles.themeBtnTextActive]}>Oscuro</Text>
+             <Ionicons name="moon" size={18} color={theme === 'dark' ? '#FFFFFF' : (isDark ? '#F3F4F6' : '#4F46E5')} />
+             <Text style={[styles.themeBtnText, { color: isDark ? '#F3F4F6' : '#4F46E5' }, theme === 'dark' && styles.themeBtnTextActive]}>Oscuro</Text>
            </TouchableOpacity>
            <TouchableOpacity
-             style={[styles.themeBtn, theme === 'system' && styles.themeBtnActive]}
+             style={[styles.themeBtn, { backgroundColor: isDark ? '#3F3F46' : '#EEF2FF', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }, theme === 'system' && styles.themeBtnActive]}
              onPress={() => setTheme('system')}>
-             <Ionicons name="phone-portrait" size={18} color={theme === 'system' ? '#FFFFFF' : '#4F46E5'} />
-             <Text style={[styles.themeBtnText, theme === 'system' && styles.themeBtnTextActive]}>Sistema</Text>
+             <Ionicons name="phone-portrait" size={18} color={theme === 'system' ? '#FFFFFF' : (isDark ? '#F3F4F6' : '#4F46E5')} />
+             <Text style={[styles.themeBtnText, { color: isDark ? '#F3F4F6' : '#4F46E5' }, theme === 'system' && styles.themeBtnTextActive]}>Sistema</Text>
            </TouchableOpacity>
          </View>
        </View>
@@ -315,22 +315,22 @@ export default function ProfileScreen() {
        <View style={[styles.actionsCard, dynamicStyles.card]}>
          <Text style={[styles.sectionTitle, dynamicStyles.text]}>Legal e Información</Text>
          <TouchableOpacity
-           style={styles.legalButton}
+           style={[styles.legalButton, { backgroundColor: isDark ? '#3F3F46' : '#EEF2FF', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}
            onPress={() => {
              setLegalType('privacy');
              setLegalModalVisible(true);
            }}>
-           <Ionicons name="shield-checkmark-outline" size={18} color="#4F46E5" />
-           <Text style={styles.legalButtonText}>Ver Política de Privacidad</Text>
+           <Ionicons name="shield-checkmark-outline" size={18} color={isDark ? '#F3F4F6' : '#4F46E5'} />
+           <Text style={[styles.legalButtonText, { color: isDark ? '#F3F4F6' : '#4F46E5' }]}>Ver Política de Privacidad</Text>
          </TouchableOpacity>
          <TouchableOpacity
-           style={styles.legalButton}
+           style={[styles.legalButton, { backgroundColor: isDark ? '#3F3F46' : '#EEF2FF', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}
            onPress={() => {
              setLegalType('terms');
              setLegalModalVisible(true);
            }}>
-           <Ionicons name="document-text-outline" size={18} color="#4F46E5" />
-           <Text style={styles.legalButtonText}>Ver Términos y Condiciones</Text>
+           <Ionicons name="document-text-outline" size={18} color={isDark ? '#F3F4F6' : '#4F46E5'} />
+           <Text style={[styles.legalButtonText, { color: isDark ? '#F3F4F6' : '#4F46E5' }]}>Ver Términos y Condiciones</Text>
          </TouchableOpacity>
          <Text style={[styles.disclaimerText, dynamicStyles.subText]}>
            Nota: Los cálculos del semáforo académico son proyecciones de referencia. El usuario es responsable de verificar sus notas oficiales con la institución.

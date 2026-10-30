@@ -7,6 +7,7 @@ Gestor académico inteligente diseñado para centralizar apuntes y bitácoras de
 ## 🚀 Inicio Rápido
 
 ### 1. Iniciar la aplicación
+
 Ejecuta en tu terminal:
 
 ```bash
@@ -24,6 +25,7 @@ npx expo start
 El proyecto incluye el script completo con PostgreSQL y seguridad RLS en [`supabase_schema.sql`](./supabase_schema.sql).
 
 ### Pasos para configurar tu backend:
+
 1. Entra a tu consola en [Supabase](https://supabase.com) y crea un nuevo proyecto.
 2. Ve al menú lateral **SQL Editor**.
 3. Copia y pega el contenido de [`supabase_schema.sql`](./supabase_schema.sql) y pulsa **Run**.
@@ -45,11 +47,13 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key-de-supabase
 ## 🧩 Casos de Uso Implementados
 
 ### 📖 CU-01: Registro de Bitácora de Clase
+
 - **Ubicación:** Pestaña **Tareas & Bitácora** (`app/(tabs)/tasks.tsx`).
 - Permite registrar el apunte justo al terminar la clase seleccionando la materia.
 - Captura de foto del pizarrón mediante cámara o galería (`expo-image-picker`).
 
 ### ⏰ CU-02: Gestión de Tareas con Prioridad y Alertas Inteligentes
+
 - **Ubicación:** `src/services/notifications.ts` y pestaña **Tareas & Bitácora**.
 - Motor de alertas predictivas automáticas según prioridad:
   - **Alta:** Recordatorios automáticos a los 7 días, 3 días y 1 día antes a las 09:00 AM.
@@ -58,6 +62,7 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key-de-supabase
 - Al marcar una tarea como completada, sus notificaciones pendientes se cancelan automáticamente.
 
 ### 🧮 CU-03: Simulación y Proyección de Notas
+
 - **Ubicación:** Pestaña **Calculadora** (`app/(tabs)/subjects.tsx`) y algoritmo en `src/services/gradesCalculator.ts`.
 - Desglose por cortes (ej: Parcial 1: 4.0 al 30%).
 - Algoritmo que calcula:
@@ -93,4 +98,3 @@ NotaSegura/
 ├── .env.example             # Plantilla de variables de entorno
 └── package.json
 ```
-

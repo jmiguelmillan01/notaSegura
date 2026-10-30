@@ -96,9 +96,13 @@ export default function HomeScreen() {
 
       {/* Alerta de materias que requieren atención (CU-03) */}
       {subjectsAtRisk.length > 0 && (
-        <View style={styles.alertBanner}>
-          <Ionicons name="warning" size={20} color="#B45309" style={{ marginRight: 8 }} />
-          <Text style={styles.alertBannerText}>
+        <View style={[styles.alertBanner, {
+          backgroundColor: isDark ? colors.card : '#FEF3C7',
+          borderColor: isDark ? '#D97706' : '#FDE68A',
+          borderLeftWidth: isDark ? 4 : 1,
+        }]}>
+          <Ionicons name="warning" size={20} color={isDark ? '#FCD34D' : '#B45309'} style={{ marginRight: 8 }} />
+          <Text style={[styles.alertBannerText, { color: isDark ? '#FDE68A' : '#92400E' }]}>
             Tienes {subjectsAtRisk.length} materia(s) que requieren mayor atención para asegurar la nota mínima aprobatoria.
           </Text>
         </View>
