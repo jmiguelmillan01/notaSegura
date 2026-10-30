@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Subject, Grade, Task, MediaItem, TaskPriority } from '../types/database';
 import { scheduleTaskAlerts, cancelTaskAlerts } from '../services/notifications';
 import { supabase, isSupabaseConfigured } from '../services/supabase';
@@ -53,7 +55,9 @@ function generateUUID() {
   });
 }
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>()(
+  persist(
+    (set, get) => ({
   subjects: INITIAL_SUBJECTS,
   grades: INITIAL_GRADES,
   tasks: INITIAL_TASKS,
@@ -455,4 +459,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   getTasksForSubject: (subjectId) => {
     return get().tasks.filter((t) => t.subject_id === subjectId);
   },
-}));
+}),
+  {
+    name: 'notasegura-storage',
+    storage: createJSONStorage(() => AsyncStorage),
+  }
+));
