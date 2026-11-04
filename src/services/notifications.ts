@@ -14,12 +14,10 @@ function isExpoGoClient(): boolean {
   }
 }
 
-// Carga perezosa (lazy) protegida de expo-notifications para evitar que crashee
-// la aplicación en entornos donde el módulo nativo no está disponible (como Expo Go en Android)
+// Carga perezosa (lazy) protegida de expo-notifications
 let Notifications: typeof import('expo-notifications') | null = null;
 
 try {
-  // Solo cargar si no es web y no es Expo Go en Android (donde las notificaciones están deshabilitadas)
   if (Platform.OS !== 'web' && !(Platform.OS === 'android' && isExpoGoClient())) {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     Notifications = require('expo-notifications');
@@ -40,7 +38,7 @@ try {
 }
 
 /**
- * Solicitar permisos para notificaciones locales
+ * Solicitar permisos para notificaciones locales y configurar canales según prioridad
  */
 export async function requestNotificationPermissions(): Promise<boolean> {
   if (!Notifications) return false;
@@ -64,14 +62,24 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 
     if (Platform.OS === 'android' && Notifications.setNotificationChannelAsync) {
       try {
-        await Notifications.setNotificationChannelAsync('academic-alerts', {
-          name: 'Alertas Académicas NotaSegura',
-          importance: Notifications.AndroidImportance.MAX,
+        await Notifications.setNotificationChannelAsync('high-priority', {
+          name: 'Prioridad Alta',
+          importance: Notifications.AndroidImportance.HIGH,
           vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#DC2626',
+        });
+        await Notifications.setNotificationChannelAsync('medium-priority', {
+          name: 'Prioridad Media',
+          importance: Notifications.AndroidImportance.DEFAULT,
           lightColor: '#4F46E5',
         });
+        await Notifications.setNotificationChannelAsync('low-priority', {
+          name: 'Prioridad Baja',
+          importance: Notifications.AndroidImportance.LOW,
+          lightColor: '#10B981',
+        });
       } catch (channelErr) {
-        // En algunos dispositivos/emuladores de Expo Go setNotificationChannelAsync puede fallar sin afectar la ejecución
+        // En algunos dispositivos/emuladores puede fallar sin afectar la ejecución
       }
     }
 
@@ -101,7 +109,7 @@ export function getAlertOffsetsDays(priority: TaskPriority): number[] {
 }
 
 /**
- * Programa las alertas automáticas para una tarea según su prioridad y fecha límite
+ * Programa las notificaciones automáticas para una tarea según su prioridad y fecha límite
  */
 export async function scheduleTaskAlerts(task: Task, subjectName: string): Promise<string[]> {
   if (!Notifications || Platform.OS === 'web') return [];
@@ -112,7 +120,6 @@ export async function scheduleTaskAlerts(task: Task, subjectName: string): Promi
   const dueDate = new Date(task.due_date);
   const now = new Date();
 
-  // Si la fecha límite ya pasó, no programar
   if (dueDate.getTime() <= now.getTime()) {
     return [];
   }
@@ -120,26 +127,31 @@ export async function scheduleTaskAlerts(task: Task, subjectName: string): Promi
   const notificationIds: string[] = [];
   const daysOffsets = getAlertOffsetsDays(task.priority);
 
+  const channelId =
+    task.priority === 'high'
+      ? 'high-priority'
+      : task.priority === 'low'
+      ? 'low-priority'
+      : 'medium-priority';
+
   for (const daysBefore of daysOffsets) {
     const triggerDate = new Date(dueDate.getTime() - daysBefore * 24 * 60 * 60 * 1000);
-    // Programar la alerta a las 09:00 AM del día correspondiente
     triggerDate.setHours(9, 0, 0, 0);
 
-    // Solo programar si la fecha del recordatorio es en el futuro
     if (triggerDate.getTime() > now.getTime()) {
       try {
         const id = await Notifications.scheduleNotificationAsync({
           content: {
-            title: `⏰ Recordatorio (${task.priority.toUpperCase()}): ${task.title}`,
+            title: `📌 Recordatorio (${task.priority.toUpperCase()}): ${task.title}`,
             body: `Materia: ${subjectName}. Vence en ${daysBefore} día${daysBefore > 1 ? 's' : ''}. ¡Organiza tu tiempo!`,
             data: { taskId: task.id, subjectId: task.subject_id },
-            sound: true,
+            sound: task.priority !== 'low', // Silencioso si es prioridad baja
           },
-          trigger: { date: triggerDate } as any,
+          trigger: { date: triggerDate, channelId } as any,
         });
         notificationIds.push(id);
       } catch (err) {
-        console.warn('Error al programar alerta:', err);
+        console.warn('Error al programar notificación:', err);
       }
     }
   }
@@ -148,7 +160,7 @@ export async function scheduleTaskAlerts(task: Task, subjectName: string): Promi
 }
 
 /**
- * Cancela las notificaciones asociadas a una tarea (ej. si se completa o elimina)
+ * Cancela las notificaciones asociadas a una tarea
  */
 export async function cancelTaskAlerts(notificationIds: string[] = []): Promise<void> {
   if (!Notifications || Platform.OS === 'web' || !notificationIds.length) return;
