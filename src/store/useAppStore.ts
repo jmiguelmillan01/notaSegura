@@ -74,11 +74,11 @@ async function uploadMediaToSupabase(userId: string, taskId: string, mediaItems:
       const filePath = `${userId}/${taskId}/${fileName}`;
 
       const response = await fetch(fileUri);
-      const blob = await response.blob();
+      const arrayBuffer = await response.arrayBuffer();
 
       const { error: uploadError } = await supabase.storage
         .from('task-media')
-        .upload(filePath, blob, {
+        .upload(filePath, arrayBuffer, {
           contentType: 'image/jpeg',
           upsert: true,
         });

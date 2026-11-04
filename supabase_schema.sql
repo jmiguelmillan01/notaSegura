@@ -195,8 +195,8 @@ create policy "Users can manage their own grades"
 -- (Ejecutar en Supabase SQL Editor para crear el bucket y políticas de almacenamiento)
 -- ==============================================================================
 insert into storage.buckets (id, name, public)
-values ('task-media', 'task-media', false)
-on conflict (id) do nothing;
+values ('task-media', 'task-media', true)
+on conflict (id) do update set public = true;
 
 -- Permitir subir archivos solo a carpetas con el propio user_id (task-media/{user_id}/*)
 create policy "Users can upload media to own folder"
