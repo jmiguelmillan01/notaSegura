@@ -46,7 +46,7 @@ export default function TasksScreen() {
   const [dueDate, setDueDate] = useState<Date>(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000));
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
 
   const activeSubjects = subjects.filter((s) => !s.is_archived);
   const activeSubjectIds = new Set(activeSubjects.map((s) => s.id));
@@ -67,18 +67,19 @@ export default function TasksScreen() {
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso necesario', 'Necesitamos acceso a tus fotos para adjuntar el apunte.');
+      Alert.alert('Permiso necesario', 'Necesitamos acceso a tus fotos para adjuntar los apuntes.');
       return;
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
+      allowsMultipleSelection: true,
       quality: 0.8,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setSelectedImage(result.assets[0].uri);
+      const uris = result.assets.map((asset) => asset.uri);
+      setSelectedImages((prev) => [...prev, ...uris]);
     }
   };
 
@@ -95,8 +96,12 @@ export default function TasksScreen() {
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setSelectedImage(result.assets[0].uri);
+      setSelectedImages((prev) => [...prev, result.assets[0].uri]);
     }
+  };
+
+  const removeImage = (index: number) => {
+    setSelectedImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleOpenCreateModal = () => {
@@ -107,7 +112,7 @@ export default function TasksScreen() {
     setPriority('medium');
     setIsClassLog(false);
     setDueDate(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000));
-    setSelectedImage(null);
+    setSelectedImages([]);
     setModalVisible(true);
   };
 
@@ -119,7 +124,7 @@ export default function TasksScreen() {
     setPriority(task.priority);
     setIsClassLog(task.is_class_log);
     setDueDate(task.due_date ? new Date(task.due_date) : new Date());
-    setSelectedImage(task.media && task.media.length > 0 ? task.media[0].file_url : null);
+    setSelectedImages(task.media ? task.media.map((m) => m.file_url) : []);
     setModalVisible(true);
   };
 
@@ -129,17 +134,14 @@ export default function TasksScreen() {
       return;
     }
 
-    const mediaList: MediaItem[] = [];
-    if (selectedImage) {
-      mediaList.push({
-        id: `med-${Date.now()}`,
-        user_id: 'user-local',
-        task_id: editingTaskId || '',
-        file_url: selectedImage,
-        file_path: selectedImage,
-        type: 'image',
-      });
-    }
+    const mediaList: MediaItem[] = selectedImages.map((uri, index) => ({
+      id: `med-${Date.now()}-${index}`,
+      user_id: 'user-local',
+      task_id: editingTaskId || '',
+      file_url: uri,
+      file_path: uri,
+      type: 'image',
+    }));
 
     if (editingTaskId) {
       await updateTask(
@@ -179,7 +181,7 @@ export default function TasksScreen() {
     setEditingTaskId(null);
     setTitle('');
     setNotes('');
-    setSelectedImage(null);
+    setSelectedImages([]);
     setIsClassLog(false);
     setPriority('medium');
     setModalVisible(false);
@@ -388,14 +390,19 @@ export default function TasksScreen() {
 
                 {task.notes ? <Text style={[styles.taskNotes, { backgroundColor: isDark ? colors.innerCard : '#F9FAFB', color: colors.subText }]}>{task.notes}</Text> : null}
 
-                {/* Mostrar foto adjunta si tiene */}
+                {/* Mostrar fotos adjuntas si tiene */}
                 {task.media && task.media.length > 0 && (
-                  <View style={styles.mediaContainer}>
-                    <Image
-                      source={{ uri: task.media[0].file_url }}
-                      style={styles.attachedImage}
-                    />
-                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mediaContainer}>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {task.media.map((item, mIdx) => (
+                        <Image
+                          key={item.id || mIdx}
+                          source={{ uri: item.file_url }}
+                          style={styles.attachedImage}
+                        />
+                      ))}
+                    </View>
+                  </ScrollView>
                 )}
 
                 <View style={[styles.taskFooter, { borderTopColor: colors.border }]}>
@@ -612,15 +619,21 @@ export default function TasksScreen() {
                 </TouchableOpacity>
               </View>
 
-              {selectedImage && (
-                <View style={styles.previewContainer}>
-                  <Image source={{ uri: selectedImage }} style={styles.previewImage} />
-                  <TouchableOpacity
-                    style={styles.removeImageBtn}
-                    onPress={() => setSelectedImage(null)}>
-                    <Ionicons name="close-circle" size={24} color="#EF4444" />
-                  </TouchableOpacity>
-                </View>
+              {selectedImages.length > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 10 }}>
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    {selectedImages.map((uri, index) => (
+                      <View key={index} style={styles.previewContainer}>
+                        <Image source={{ uri }} style={styles.previewImage} />
+                        <TouchableOpacity
+                          style={styles.removeImageBtn}
+                          onPress={() => removeImage(index)}>
+                          <Ionicons name="close-circle" size={24} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                </ScrollView>
               )}
 
               <TouchableOpacity style={[styles.submitButton, { backgroundColor: colors.tint }]} onPress={handleSaveTask}>
@@ -769,8 +782,8 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   attachedImage: {
-    width: '100%',
-    height: 160,
+    width: 140,
+    height: 120,
     borderRadius: 8,
   },
   taskFooter: {
@@ -963,11 +976,12 @@ const styles = StyleSheet.create({
   },
   previewContainer: {
     position: 'relative',
-    marginVertical: 10,
+    width: 100,
+    height: 100,
   },
   previewImage: {
-    width: '100%',
-    height: 120,
+    width: 100,
+    height: 100,
     borderRadius: 8,
   },
   removeImageBtn: {
