@@ -9,6 +9,8 @@ import {
   Alert,
   Modal,
   Linking,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,7 +21,7 @@ import { useThemeColors } from '../../src/utils/theme';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { profile, updateProfile, subjects, clearStore, theme, setTheme } = useAppStore();
+  const { profile, updateProfile, subjects, clearStore, theme, setTheme, isOfflineMode } = useAppStore();
   const colors = useThemeColors();
   const isDark = colors.isDark;
 
@@ -45,23 +47,30 @@ export default function ProfileScreen() {
   const [legalModalVisible, setLegalModalVisible] = useState(false);
   const [legalType, setLegalType] = useState<'privacy' | 'terms'>('privacy');
 
+  const [isAnonymous, setIsAnonymous] = useState(false);
+
   useEffect(() => {
     if (isSupabaseConfigured()) {
       supabase.auth.getSession().then(({ data }) => {
         setSession(data.session);
+        setIsAnonymous(Boolean(data.session?.user?.is_anonymous));
         if (data.session?.user?.email) {
           setUserEmail(data.session.user.email);
         }
       });
 
       supabase.auth.getUser().then(({ data }) => {
-        if (data?.user?.email) {
-          setUserEmail(data.user.email);
+        if (data?.user) {
+          setIsAnonymous(Boolean(data.user.is_anonymous));
+          if (data.user.email) {
+            setUserEmail(data.user.email);
+          }
         }
       });
 
       const { data: authListener } = supabase.auth.onAuthStateChange((_event, sess) => {
         setSession(sess);
+        setIsAnonymous(Boolean(sess?.user?.is_anonymous));
         if (sess?.user?.email) {
           setUserEmail(sess.user.email);
         }
@@ -77,60 +86,47 @@ export default function ProfileScreen() {
 
   const handleSave = async () => {
     if (!fullName.trim()) {
-      Alert.alert('Campo requerido', 'Por favor ingresa tu nombre.');
-      return;
-    }
-
-    await updateProfile({
-      full_name: fullName.trim(),
-      institution: institution.trim() || undefined,
-      major: major.trim() || undefined,
-      bio: bio.trim() || undefined,
-    });
-
-    Alert.alert('Guardado', 'Tu información de perfil ha sido actualizada.');
-  };
-
-  const handleResetPassword = () => {
-    if (!userEmail) {
-      Alert.alert('No disponible', 'No hay un correo electrónico asociado a esta sesión.');
-      return;
-    }
-    setNewPassword('');
-    setConfirmPassword('');
-    setPasswordModalVisible(true);
-  };
-
-  const handleUpdatePasswordDirect = async () => {
-    if (!newPassword.trim() || newPassword.length < 6) {
-      Alert.alert('Contraseña débil', 'La nueva contraseña debe tener al menos 6 caracteres.');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      Alert.alert('No coinciden', 'Las contraseñas no coinciden.');
+      Alert.alert('Campo requerido', 'El nombre completo es obligatorio.');
       return;
     }
 
     try {
-      setUpdatingPassword(true);
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword.trim(),
+      await updateProfile({
+        full_name: fullName.trim(),
+        institution: institution.trim(),
+        major: major.trim(),
+        bio: bio.trim(),
       });
-
-      if (error) {
-        Alert.alert('Error', error.message);
-        return;
-      }
-
-      Alert.alert('¡Éxito!', 'Tu contraseña ha sido actualizada correctamente.');
-      setNewPassword('');
-      setConfirmPassword('');
-      setPasswordModalVisible(false);
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Ocurrió un error inesperado.');
-    } finally {
-      setUpdatingPassword(false);
+      Alert.alert('Éxito', 'Perfil actualizado correctamente.');
+    } catch (err) {
+      Alert.alert('Error', 'No se pudo actualizar el perfil.');
     }
+  };
+
+  const handleResetPassword = async () => {
+    if (!isSupabaseConfigured() || !userEmail) return;
+    
+    Alert.alert(
+      'Cambiar Contraseña',
+      '¿Deseas recibir un enlace en tu correo para restablecer tu contraseña?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Enviar Correo',
+          onPress: async () => {
+            try {
+              const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
+                redirectTo: 'notasegura://reset-password',
+              });
+              if (error) throw error;
+              Alert.alert('Correo enviado', 'Revisa tu bandeja de entrada para continuar.');
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'No se pudo enviar el correo.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleSignOut = async () => {
@@ -146,7 +142,7 @@ export default function ProfileScreen() {
             setUserEmail('');
           }
           clearStore();
-          Alert.alert('Sesión cerrada', 'Has cerrado sesión correctamente.');
+          router.replace('/welcome' as any);
         },
       },
     ]);
@@ -155,7 +151,7 @@ export default function ProfileScreen() {
   const handleDeleteAccount = async () => {
     Alert.alert(
       'Eliminar Cuenta Definitivamente',
-      '¿Estás seguro? Esta acción es irreversible y borrará permanentemente todas tus materias, tareas y notas registradas.',
+      '¿Estás seguro? Esta acción es irreversible y borrará permanentemente tu cuenta y todas tus materias, tareas y notas registradas.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -164,11 +160,29 @@ export default function ProfileScreen() {
           onPress: async () => {
             try {
               if (isSupabaseConfigured() && session?.user?.id) {
-                await supabase.from('profiles').delete().eq('id', session.user.id);
+                const userId = session.user.id;
+                
+                // 1. Intentar eliminar cuenta de usuario via RPC de Supabase (borra auth.users y cascada)
+                const { error: rpcError } = await supabase.rpc('delete_user_account');
+                
+                if (rpcError) {
+                  console.warn('RPC delete_user_account no disponible o falló:', rpcError.message);
+                  // Respaldo manual: Borrar datos de las tablas públicas
+                  await Promise.all([
+                    supabase.from('grades').delete().eq('user_id', userId),
+                    supabase.from('tasks').delete().eq('user_id', userId),
+                    supabase.from('subjects').delete().eq('user_id', userId),
+                    supabase.from('profiles').delete().eq('id', userId),
+                  ]);
+                }
+
+                // 2. Cerrar la sesión del cliente
                 await supabase.auth.signOut();
               }
+              setSession(null);
+              setUserEmail('');
               clearStore();
-              Alert.alert('Cuenta eliminada', 'Tus datos han sido eliminados correctamente.');
+              Alert.alert('Cuenta eliminada', 'Tus datos y tu cuenta han sido eliminados correctamente.');
               router.replace('/login' as any);
             } catch (err: any) {
               Alert.alert('Error', err.message || 'No se pudo eliminar la cuenta.');
@@ -179,239 +193,207 @@ export default function ProfileScreen() {
     );
   };
 
+  const isOfflineUser = isAnonymous || isOfflineMode || (!session && !userEmail);
+
   return (
-    <ScrollView style={[styles.container, dynamicStyles.container]} contentContainerStyle={styles.contentContainer}>
-      <View style={[styles.headerCard, dynamicStyles.card]}>
-        <View style={styles.avatarContainer}>
-          <Ionicons name="person" size={36} color="#4F46E5" />
-        </View>
-        <Text style={[styles.profileName, dynamicStyles.text]}>{fullName || 'Estudiante NotaSegura'}</Text>
-        {userEmail ? (
-          <Text style={[styles.profileEmail, dynamicStyles.subText]}>{userEmail}</Text>
-        ) : null}
-        {institution ? (
-          <Text style={[styles.profileDetail, dynamicStyles.subText]}>{institution}</Text>
-        ) : null}
-        <Text style={[styles.profileDetail, dynamicStyles.subText]}>
-          {major || 'Gestión Académica'}
-        </Text>
-      </View>
-
-      <View style={[styles.formCard, dynamicStyles.card]}>
-        <Text style={[styles.sectionTitle, dynamicStyles.text]}>Información Personal</Text>
-
-        <Text style={[styles.inputLabel, dynamicStyles.label]}>Nombre Completo *</Text>
-        <TextInput
-          style={[styles.textInput, dynamicStyles.input]}
-          placeholder="Tu nombre"
-          placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
-          value={fullName}
-          onChangeText={setFullName}
-        />
-
-        <Text style={[styles.inputLabel, dynamicStyles.label]}>Institución Educativa / Universidad</Text>
-        <TextInput
-          style={[styles.textInput, dynamicStyles.input]}
-          placeholder="Ej: Universidad Nacional"
-          placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
-          value={institution}
-          onChangeText={setInstitution}
-        />
-
-        <Text style={[styles.inputLabel, dynamicStyles.label]}>Carrera / Grado</Text>
-        <TextInput
-          style={[styles.textInput, dynamicStyles.input]}
-          placeholder="Ej: Ingeniería de Sistemas"
-          placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
-          value={major}
-          onChangeText={setMajor}
-        />
-
-        <Text style={[styles.inputLabel, dynamicStyles.label]}>Biografía / Metas Académicas</Text>
-        <TextInput
-          style={[styles.textInput, styles.textArea, dynamicStyles.input]}
-          placeholder="Ej: Mantener promedio superior a 4.0 este semestre..."
-          placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
-          multiline
-          numberOfLines={3}
-          value={bio}
-          onChangeText={setBio}
-        />
-
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>Guardar Cambios</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={[styles.actionsCard, dynamicStyles.card]}>
-        <View style={styles.actionRowInfo}>
-          <Ionicons name="archive-outline" size={20} color={isDark ? '#9CA3AF' : '#4B5563'} />
-          <View style={{ marginLeft: 12, flex: 1 }}>
-            <Text style={[styles.actionTitle, dynamicStyles.text]}>Historial de Materias</Text>
-            <Text style={[styles.actionSub, dynamicStyles.subText]}>
-              {archivedSubjectsCount} materia(s) archivada(s) en la papelera
-            </Text>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}>
+      <ScrollView style={[styles.container, dynamicStyles.container]} contentContainerStyle={styles.contentContainer}>
+        <View style={[styles.headerCard, dynamicStyles.card]}>
+          <View style={styles.avatarContainer}>
+            <Ionicons name="person" size={36} color="#4F46E5" />
           </View>
+          <Text style={[styles.profileName, dynamicStyles.text]}>{fullName || 'Estudiante NotaSegura'}</Text>
+          {isOfflineUser ? (
+            <View style={{ marginTop: 6, backgroundColor: '#FEF3C7', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#D97706' }}>
+                ⚡ Modo temporal / offline
+              </Text>
+            </View>
+          ) : userEmail ? (
+            <Text style={[styles.profileEmail, dynamicStyles.subText]}>
+              {userEmail.endsWith('@notasegura.local') ? `@${userEmail.split('@')[0]}` : userEmail}
+            </Text>
+          ) : null}
+          {institution ? (
+            <Text style={[styles.profileDetail, dynamicStyles.subText]}>{institution}</Text>
+          ) : null}
+          <Text style={[styles.profileDetail, dynamicStyles.subText]}>
+            {major || 'Gestión Académica'}
+          </Text>
         </View>
 
-        {isSupabaseConfigured() && !session ? (
-          <View style={{ gap: 10, marginTop: 4 }}>
-            <Text style={{ fontSize: 13, color: colors.subText, textAlign: 'center', marginBottom: 4 }}>
-              Inicia sesión o regístrate para sincronizar tus datos en Supabase.
-            </Text>
-            <TouchableOpacity
-              style={styles.signInBtn}
-              onPress={() => router.push('/login' as any)}>
-              <Ionicons name="log-in-outline" size={18} color="#FFFFFF" />
-              <Text style={styles.signInText}>Iniciar Sesión</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.signUpBtn, { backgroundColor: isDark ? '#3F3F46' : '#EEF2FF', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}
-              onPress={() => router.push('/signup' as any)}>
-              <Ionicons name="person-add-outline" size={18} color={isDark ? '#F3F4F6' : '#4F46E5'} />
-              <Text style={[styles.signUpText, { color: isDark ? '#F3F4F6' : '#4F46E5' }]}>Registrarse</Text>
-            </TouchableOpacity>
+        <View style={[styles.formCard, dynamicStyles.card]}>
+          <Text style={[styles.sectionTitle, dynamicStyles.text]}>Información Personal</Text>
+
+          <Text style={[styles.inputLabel, dynamicStyles.label]}>Nombre Completo *</Text>
+          <TextInput
+            style={[styles.textInput, dynamicStyles.input]}
+            placeholder="Tu nombre"
+            placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
+            value={fullName}
+            onChangeText={setFullName}
+          />
+
+          <Text style={[styles.inputLabel, dynamicStyles.label]}>Institución Educativa / Universidad</Text>
+          <TextInput
+            style={[styles.textInput, dynamicStyles.input]}
+            placeholder="Ej: Universidad Nacional"
+            placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
+            value={institution}
+            onChangeText={setInstitution}
+          />
+
+          <Text style={[styles.inputLabel, dynamicStyles.label]}>Carrera / Grado</Text>
+          <TextInput
+            style={[styles.textInput, dynamicStyles.input]}
+            placeholder="Ej: Ingeniería de Sistemas"
+            placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
+            value={major}
+            onChangeText={setMajor}
+          />
+
+          <Text style={[styles.inputLabel, dynamicStyles.label]}>Biografía / Metas Académicas</Text>
+          <TextInput
+            style={[styles.textInput, styles.textArea, dynamicStyles.input]}
+            placeholder="Ej: Mantener promedio superior a 4.0 este semestre..."
+            placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
+            multiline
+            numberOfLines={3}
+            value={bio}
+            onChangeText={setBio}
+          />
+
+          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+            <Text style={styles.saveButtonText}>Guardar Cambios</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={[styles.actionsCard, dynamicStyles.card]}>
+          <View style={styles.actionRowInfo}>
+            <Ionicons name="archive-outline" size={20} color={isDark ? '#9CA3AF' : '#4B5563'} />
+            <View style={{ marginLeft: 12, flex: 1 }}>
+              <Text style={[styles.actionTitle, dynamicStyles.text]}>Historial de Materias</Text>
+              <Text style={[styles.actionSub, dynamicStyles.subText]}>
+                {archivedSubjectsCount} materia(s) archivada(s) en la papelera
+              </Text>
+            </View>
           </View>
-         ) : (
-           <View style={{ gap: 10 }}>
-             {isSupabaseConfigured() && (
-               <>
-                 <TouchableOpacity style={[styles.resetPasswordBtn, { backgroundColor: isDark ? '#3F3F46' : '#EEF2FF', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]} onPress={handleResetPassword}>
-                   <Ionicons name="key-outline" size={18} color={isDark ? '#F3F4F6' : '#4F46E5'} />
-                   <Text style={[styles.resetPasswordText, { color: isDark ? '#F3F4F6' : '#4F46E5' }]}>Cambiar Contraseña</Text>
-                 </TouchableOpacity>
-                 <TouchableOpacity style={[styles.deleteAccountButton, { backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2', borderColor: isDark ? '#DC2626' : 'transparent', borderWidth: isDark ? 1 : 0 }]} onPress={handleDeleteAccount}>
-                   <Ionicons name="trash-outline" size={18} color={isDark ? '#FFFFFF' : '#DC2626'} />
-                   <Text style={[styles.deleteAccountText, isDark && { color: '#FFFFFF' }]}>Eliminar Cuenta Definitivamente</Text>
-                 </TouchableOpacity>
-               </>
-             )}
-             <TouchableOpacity style={[styles.signOutButton, { backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2', borderColor: isDark ? '#DC2626' : 'transparent', borderWidth: isDark ? 1 : 0 }]} onPress={handleSignOut}>
-               <Ionicons name="log-out-outline" size={18} color={isDark ? '#FFFFFF' : '#DC2626'} />
-               <Text style={[styles.signOutText, isDark && { color: '#FFFFFF' }]}>Cerrar Sesión</Text>
-             </TouchableOpacity>
-           </View>
-         )}
-       </View>
 
-       <View style={[styles.actionsCard, dynamicStyles.card]}>
-         <Text style={[styles.sectionTitle, dynamicStyles.text]}>Apariencia</Text>
-         <View style={styles.themeRow}>
-           <TouchableOpacity
-             style={[styles.themeBtn, { backgroundColor: isDark ? '#3F3F46' : '#EEF2FF', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }, theme === 'light' && styles.themeBtnActive]}
-             onPress={() => setTheme('light')}>
-             <Ionicons name="sunny" size={18} color={theme === 'light' ? '#FFFFFF' : (isDark ? '#F3F4F6' : '#4F46E5')} />
-             <Text style={[styles.themeBtnText, { color: isDark ? '#F3F4F6' : '#4F46E5' }, theme === 'light' && styles.themeBtnTextActive]}>Claro</Text>
-           </TouchableOpacity>
-           <TouchableOpacity
-             style={[styles.themeBtn, { backgroundColor: isDark ? '#3F3F46' : '#EEF2FF', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }, theme === 'dark' && styles.themeBtnActive]}
-             onPress={() => setTheme('dark')}>
-             <Ionicons name="moon" size={18} color={theme === 'dark' ? '#FFFFFF' : (isDark ? '#F3F4F6' : '#4F46E5')} />
-             <Text style={[styles.themeBtnText, { color: isDark ? '#F3F4F6' : '#4F46E5' }, theme === 'dark' && styles.themeBtnTextActive]}>Oscuro</Text>
-           </TouchableOpacity>
-           <TouchableOpacity
-             style={[styles.themeBtn, { backgroundColor: isDark ? '#3F3F46' : '#EEF2FF', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }, theme === 'system' && styles.themeBtnActive]}
-             onPress={() => setTheme('system')}>
-             <Ionicons name="phone-portrait" size={18} color={theme === 'system' ? '#FFFFFF' : (isDark ? '#F3F4F6' : '#4F46E5')} />
-             <Text style={[styles.themeBtnText, { color: isDark ? '#F3F4F6' : '#4F46E5' }, theme === 'system' && styles.themeBtnTextActive]}>Sistema</Text>
-           </TouchableOpacity>
-         </View>
-       </View>
+          {isOfflineUser ? (
+            <View style={{ gap: 10, marginTop: 4 }}>
+              <View style={{ backgroundColor: isDark ? '#1E1B4B' : '#EEF2FF', padding: 14, borderRadius: 12, marginBottom: 4, borderWidth: 1, borderColor: '#C7D2FE' }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: isDark ? '#A5B4FC' : '#4338CA', marginBottom: 4 }}>
+                  Estás usando una cuenta temporal/offline
+                </Text>
+                <Text style={{ fontSize: 13, color: isDark ? '#D1D5DB' : '#4B5563', lineHeight: 18 }}>
+                  Crea tu cuenta permanente para proteger tus materias y notas en la nube y no perder nada.
+                </Text>
+              </View>
 
-       <View style={[styles.actionsCard, dynamicStyles.card]}>
-         <Text style={[styles.sectionTitle, dynamicStyles.text]}>Legal e Información</Text>
-         <TouchableOpacity
-           style={[styles.legalButton, { backgroundColor: isDark ? '#3F3F46' : '#EEF2FF', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}
-           onPress={() => {
-             setLegalType('privacy');
-             setLegalModalVisible(true);
-           }}>
-           <Ionicons name="shield-checkmark-outline" size={18} color={isDark ? '#F3F4F6' : '#4F46E5'} />
-           <Text style={[styles.legalButtonText, { color: isDark ? '#F3F4F6' : '#4F46E5' }]}>Ver Política de Privacidad</Text>
-         </TouchableOpacity>
-         <TouchableOpacity
-           style={[styles.legalButton, { backgroundColor: isDark ? '#3F3F46' : '#EEF2FF', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}
-           onPress={() => {
-             setLegalType('terms');
-             setLegalModalVisible(true);
-           }}>
-           <Ionicons name="document-text-outline" size={18} color={isDark ? '#F3F4F6' : '#4F46E5'} />
-           <Text style={[styles.legalButtonText, { color: isDark ? '#F3F4F6' : '#4F46E5' }]}>Ver Términos y Condiciones</Text>
-         </TouchableOpacity>
-         <Text style={[styles.disclaimerText, dynamicStyles.subText]}>
-           Nota: Los cálculos del semáforo académico son proyecciones de referencia. El usuario es responsable de verificar sus notas oficiales con la institución.
-         </Text>
-       </View>
+              <TouchableOpacity
+                style={styles.signUpBtn}
+                onPress={() => router.push('/signup' as any)}>
+                <Ionicons name="person-add-outline" size={18} color="#4F46E5" />
+                <Text style={styles.signUpText}>Crear cuenta permanente</Text>
+              </TouchableOpacity>
 
-      <Modal visible={passwordModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Cambiar Contraseña</Text>
-              <TouchableOpacity onPress={() => setPasswordModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#6B7280" />
+              <TouchableOpacity
+                style={styles.signInBtn}
+                onPress={() => router.push('/login' as any)}>
+                <Ionicons name="log-in-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.signInText}>Iniciar Sesión</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.signOutButton, { backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2', borderColor: isDark ? '#DC2626' : 'transparent', borderWidth: isDark ? 1 : 0, marginTop: 6 }]}
+                onPress={handleSignOut}>
+                <Ionicons name="log-out-outline" size={18} color={isDark ? '#FFFFFF' : '#DC2626'} />
+                <Text style={[styles.signOutText, isDark && { color: '#FFFFFF' }]}>Salir de Modo Temporal</Text>
               </TouchableOpacity>
             </View>
+          ) : (
+            <View style={{ gap: 10 }}>
+              {isSupabaseConfigured() && (
+                <>
+                  <TouchableOpacity style={[styles.resetPasswordBtn, { backgroundColor: isDark ? '#3F3F46' : '#EEF2FF', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]} onPress={handleResetPassword}>
+                    <Ionicons name="key-outline" size={18} color={isDark ? '#F3F4F6' : '#4F46E5'} />
+                    <Text style={[styles.resetPasswordText, { color: isDark ? '#F3F4F6' : '#4F46E5' }]}>Cambiar Contraseña</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.deleteAccountButton, { backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2', borderColor: isDark ? '#DC2626' : 'transparent', borderWidth: isDark ? 1 : 0 }]} onPress={handleDeleteAccount}>
+                    <Ionicons name="trash-outline" size={18} color={isDark ? '#FFFFFF' : '#DC2626'} />
+                    <Text style={[styles.deleteAccountText, isDark && { color: '#FFFFFF' }]}>Eliminar Cuenta Definitivamente</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+              <TouchableOpacity style={[styles.signOutButton, { backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2', borderColor: isDark ? '#DC2626' : 'transparent', borderWidth: isDark ? 1 : 0 }]} onPress={handleSignOut}>
+                <Ionicons name="log-out-outline" size={18} color={isDark ? '#FFFFFF' : '#DC2626'} />
+                <Text style={[styles.signOutText, isDark && { color: '#FFFFFF' }]}>Cerrar Sesión</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
 
-            <Text style={styles.inputLabel}>Nueva Contraseña (mínimo 6 caracteres)</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="••••••••"
-              secureTextEntry
-              value={newPassword}
-              onChangeText={setNewPassword}
-            />
-
-            <Text style={styles.inputLabel}>Confirmar Nueva Contraseña</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="••••••••"
-              secureTextEntry
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-            />
-
+        <View style={[styles.actionsCard, dynamicStyles.card]}>
+          <Text style={[styles.sectionTitle, dynamicStyles.text]}>Apariencia</Text>
+          <View style={styles.themeRow}>
             <TouchableOpacity
-              style={[styles.saveButton, updatingPassword && { opacity: 0.7 }]}
-              onPress={handleUpdatePasswordDirect}
-              disabled={updatingPassword}>
-              <Text style={styles.saveButtonText}>
-                {updatingPassword ? 'Actualizando...' : 'Guardar Nueva Contraseña'}
-              </Text>
+              style={[styles.themeBtn, { backgroundColor: isDark ? '#3F3F46' : '#EEF2FF', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }, theme === 'light' && styles.themeBtnActive]}
+              onPress={() => setTheme('light')}>
+              <Ionicons name="sunny" size={18} color={theme === 'light' ? '#FFFFFF' : (isDark ? '#F3F4F6' : '#4F46E5')} />
+              <Text style={[styles.themeBtnText, { color: isDark ? '#F3F4F6' : '#4F46E5' }, theme === 'light' && styles.themeBtnTextActive]}>Claro</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.themeBtn, { backgroundColor: isDark ? '#3F3F46' : '#EEF2FF', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }, theme === 'dark' && styles.themeBtnActive]}
+              onPress={() => setTheme('dark')}>
+              <Ionicons name="moon" size={18} color={theme === 'dark' ? '#FFFFFF' : (isDark ? '#F3F4F6' : '#4F46E5')} />
+              <Text style={[styles.themeBtnText, { color: isDark ? '#F3F4F6' : '#4F46E5' }, theme === 'dark' && styles.themeBtnTextActive]}>Oscuro</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.themeBtn, { backgroundColor: isDark ? '#3F3F46' : '#EEF2FF', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }, theme === 'system' && styles.themeBtnActive]}
+              onPress={() => setTheme('system')}>
+              <Ionicons name="phone-portrait" size={18} color={theme === 'system' ? '#FFFFFF' : (isDark ? '#F3F4F6' : '#4F46E5')} />
+              <Text style={[styles.themeBtnText, { color: isDark ? '#F3F4F6' : '#4F46E5' }, theme === 'system' && styles.themeBtnTextActive]}>Sistema</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
-      <LegalModal
-        visible={legalModalVisible}
-        type={legalType}
-        onClose={() => setLegalModalVisible(false)}
-      />
-    </ScrollView>
+
+        <View style={[styles.actionsCard, dynamicStyles.card, { marginBottom: 40 }]}>
+          <Text style={[styles.sectionTitle, dynamicStyles.text]}>Acerca de</Text>
+          <TouchableOpacity style={styles.aboutRow} onPress={() => { setLegalType('terms'); setLegalModalVisible(true); }}>
+            <Ionicons name="document-text-outline" size={20} color={isDark ? '#9CA3AF' : '#4B5563'} />
+            <Text style={[styles.aboutText, dynamicStyles.text]}>Términos y Condiciones</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.mutedText} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.aboutRow} onPress={() => { setLegalType('privacy'); setLegalModalVisible(true); }}>
+            <Ionicons name="shield-checkmark-outline" size={20} color={isDark ? '#9CA3AF' : '#4B5563'} />
+            <Text style={[styles.aboutText, dynamicStyles.text]}>Política de Privacidad</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.mutedText} />
+          </TouchableOpacity>
+          <View style={styles.versionContainer}>
+            <Text style={styles.versionText}>NotaSegura v1.0.0</Text>
+          </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   contentContainer: {
     padding: 16,
-    paddingBottom: 40,
   },
   headerCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 24,
     alignItems: 'center',
+    padding: 24,
+    borderRadius: 24,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
   },
   avatarContainer: {
     width: 72,
@@ -425,229 +407,176 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#111827',
-    textAlign: 'center',
+    marginBottom: 4,
   },
   profileEmail: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginTop: 4,
-    textAlign: 'center',
+    fontSize: 14,
+    marginBottom: 4,
   },
   profileDetail: {
     fontSize: 13,
-    color: '#6B7280',
-    marginTop: 2,
-    textAlign: 'center',
+    opacity: 0.8,
   },
   formCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
     padding: 20,
+    borderRadius: 24,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
   sectionTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
-    marginBottom: 14,
+    marginBottom: 16,
   },
   inputLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
-    marginTop: 10,
+    marginBottom: 8,
   },
   textInput: {
-    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 12,
     fontSize: 15,
-    color: '#111827',
+    marginBottom: 16,
   },
   textArea: {
-    height: 70,
+    height: 80,
     textAlignVertical: 'top',
   },
   saveButton: {
     backgroundColor: '#4F46E5',
-    paddingVertical: 14,
+    padding: 14,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 8,
   },
   saveButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
     color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 15,
   },
   actionsCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
     padding: 20,
+    borderRadius: 24,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    gap: 16,
   },
   actionRowInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 16,
   },
   actionTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1F2937',
   },
   actionSub: {
     fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  signOutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FEE2E2',
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 8,
-  },
-  signOutText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#DC2626',
-  },
-  signInBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#4F46E5',
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 8,
-  },
-  signInText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
   },
   signUpBtn: {
     flexDirection: 'row',
+    backgroundColor: '#EEF2FF',
+    padding: 14,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EEF2FF',
-    paddingVertical: 12,
-    borderRadius: 12,
     gap: 8,
   },
   signUpText: {
-    fontSize: 14,
-    fontWeight: '700',
     color: '#4F46E5',
+    fontWeight: '700',
+  },
+  signInBtn: {
+    flexDirection: 'row',
+    backgroundColor: '#4F46E5',
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  signInText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  signOutButton: {
+    flexDirection: 'row',
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  signOutText: {
+    color: '#DC2626',
+    fontWeight: '700',
   },
   resetPasswordBtn: {
     flexDirection: 'row',
+    padding: 14,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EEF2FF',
-    paddingVertical: 12,
-    borderRadius: 12,
     gap: 8,
   },
   resetPasswordText: {
-    fontSize: 14,
     fontWeight: '700',
-    color: '#4F46E5',
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+  deleteAccountButton: {
+    flexDirection: 'row',
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    gap: 8,
   },
-  modalCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 22,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+  deleteAccountText: {
+    color: '#DC2626',
+    fontWeight: '700',
   },
-  modalHeader: {
+  themeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 18,
+    gap: 8,
   },
-   modalTitle: {
-     fontSize: 18,
-     fontWeight: '700',
-     color: '#111827',
-   },
-   deleteAccountButton: {
-     flexDirection: 'row',
-     alignItems: 'center',
-     justifyContent: 'center',
-     backgroundColor: '#FEE2E2',
-     paddingVertical: 12,
-     borderRadius: 12,
-     gap: 8,
-   },
-   deleteAccountText: {
-     fontSize: 14,
-     fontWeight: '700',
-     color: '#DC2626',
-   },
-   legalButton: {
-     flexDirection: 'row',
-     alignItems: 'center',
-     backgroundColor: '#EEF2FF',
-     paddingVertical: 12,
-     paddingHorizontal: 16,
-     borderRadius: 12,
-     gap: 10,
-     marginBottom: 10,
-   },
-   legalButtonText: {
-     fontSize: 14,
-     fontWeight: '600',
-     color: '#4F46E5',
-   },
-    disclaimerText: {
-      fontSize: 12,
-      color: '#6B7280',
-      lineHeight: 16,
-      marginTop: 4,
-    },
-    themeRow: {
-      flexDirection: 'row',
-      gap: 10,
-    },
-    themeBtn: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: '#EEF2FF',
-      paddingVertical: 12,
-      borderRadius: 12,
-      gap: 6,
-    },
-    themeBtnActive: {
-      backgroundColor: '#4F46E5',
-    },
-    themeBtnText: {
-      fontSize: 13,
-      fontWeight: '700',
-      color: '#4F46E5',
-    },
-    themeBtnTextActive: {
-      color: '#FFFFFF',
-    },
-  });
+  themeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    padding: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  themeBtnActive: {
+    backgroundColor: '#4F46E5',
+    borderColor: '#4F46E5',
+  },
+  themeBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  themeBtnTextActive: {
+    color: '#FFFFFF',
+  },
+  aboutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 12,
+  },
+  aboutText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  versionContainer: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  versionText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+});

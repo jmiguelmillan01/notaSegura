@@ -11,9 +11,12 @@ interface AppState {
   tasks: Task[];
   profile: { full_name?: string; institution?: string; major?: string; bio?: string } | null;
   theme: 'light' | 'dark' | 'system';
+  isOfflineMode: boolean;
   isLoading: boolean;
 
+  setOfflineMode: (enabled: boolean) => void;
   fetchData: () => Promise<void>;
+  syncLocalDataToUser: () => Promise<void>;
   updateProfile: (profile: { full_name?: string; institution?: string; major?: string; bio?: string }) => Promise<void>;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   clearStore: () => void;
@@ -65,9 +68,11 @@ export const useAppStore = create<AppState>()(
   tasks: INITIAL_TASKS,
   profile: null,
   theme: 'system',
+  isOfflineMode: false,
   isLoading: false,
 
   setTheme: (theme) => set({ theme }),
+  setOfflineMode: (enabled) => set({ isOfflineMode: enabled }),
 
   clearStore: () => {
     set({
@@ -75,6 +80,7 @@ export const useAppStore = create<AppState>()(
       grades: [],
       tasks: [],
       profile: null,
+      isOfflineMode: false,
     });
   },
 
@@ -85,11 +91,17 @@ export const useAppStore = create<AppState>()(
       const { data: { session } } = await supabase.auth.getSession();
       const userId = session?.user?.id;
 
+      // Si no hay usuario autenticado, no sobrescribir con Supabase (mantener lo local o dejarlo vacío según corresponda)
+      if (!userId) {
+        set({ isLoading: false });
+        return;
+      }
+
       const [subsRes, gradesRes, tasksRes, profileRes] = await Promise.all([
-        supabase.from('subjects').select('*'),
-        supabase.from('grades').select('*'),
-        supabase.from('tasks').select('*'),
-        userId ? supabase.from('profiles').select('*').eq('id', userId).maybeSingle() : Promise.resolve({ data: null }),
+        supabase.from('subjects').select('*').eq('user_id', userId),
+        supabase.from('grades').select('*').eq('user_id', userId),
+        supabase.from('tasks').select('*').eq('user_id', userId),
+        supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
       ]);
 
       if (subsRes.error) console.error("Error Supabase fetching subjects:", subsRes.error.message);
@@ -97,22 +109,84 @@ export const useAppStore = create<AppState>()(
       if (tasksRes.error) console.error("Error Supabase fetching tasks:", tasksRes.error.message);
       if ('error' in profileRes && profileRes.error) console.error("Error Supabase fetching profile:", profileRes.error.message);
 
-      if (subsRes.data && subsRes.data.length > 0) {
-        set({ subjects: subsRes.data });
-      }
-      if (gradesRes.data && gradesRes.data.length > 0) {
-        set({ grades: gradesRes.data });
-      }
-      if (tasksRes.data && tasksRes.data.length > 0) {
-        set({ tasks: tasksRes.data });
-      }
-      if (profileRes.data) {
-        set({ profile: profileRes.data });
-      }
+      // Asignar los datos del usuario actual (si no tiene, debe quedar vacío, no con los datos del usuario anterior)
+      set({
+        subjects: subsRes.data || [],
+        grades: gradesRes.data || [],
+        tasks: tasksRes.data || [],
+        profile: profileRes.data || null,
+      });
     } catch (err) {
       console.warn('Error fetching from Supabase:', err);
     } finally {
       set({ isLoading: false });
+    }
+  },
+
+  syncLocalDataToUser: async () => {
+    if (!isSupabaseConfigured()) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      if (!userId) return;
+
+      const state = get();
+      // Si tenemos materias locales que no tienen user_id o tienen el id anterior, sincronizarlas
+      for (const subject of state.subjects) {
+        if (!subject.user_id || subject.user_id !== userId) {
+          await supabase.from('subjects').upsert({
+            id: subject.id,
+            user_id: userId,
+            name: subject.name,
+            code: subject.code,
+            color: subject.color,
+            target_grade: subject.target_grade,
+            min_passing_grade: subject.min_passing_grade,
+            scale_max: subject.scale_max,
+            is_archived: subject.is_archived,
+          });
+        }
+      }
+
+      for (const grade of state.grades) {
+        if (!grade.user_id || grade.user_id !== userId) {
+          await supabase.from('grades').upsert({
+            id: grade.id,
+            user_id: userId,
+            subject_id: grade.subject_id,
+            name: grade.name,
+            weight_percentage: grade.weight_percentage,
+            grade: grade.grade,
+            is_evaluated: grade.is_evaluated,
+          });
+        }
+      }
+
+      for (const task of state.tasks) {
+        if (!task.user_id || task.user_id !== userId) {
+          await supabase.from('tasks').upsert({
+            id: task.id,
+            user_id: userId,
+            subject_id: task.subject_id,
+            title: task.title,
+            notes: task.notes,
+            due_date: task.due_date,
+            priority: task.priority,
+            is_completed: task.is_completed,
+            is_class_log: task.is_class_log,
+          });
+        }
+      }
+      
+      // Actualizar user_id en el store local
+      set((s) => ({
+        isOfflineMode: false,
+        subjects: s.subjects.map((sub) => ({ ...sub, user_id: userId })),
+        grades: s.grades.map((g) => ({ ...g, user_id: userId })),
+        tasks: s.tasks.map((t) => ({ ...t, user_id: userId })),
+      }));
+    } catch (e) {
+      console.warn('Error sincronizando datos locales a usuario permanente:', e);
     }
   },
 
@@ -147,21 +221,6 @@ export const useAppStore = create<AppState>()(
       }
     }
 
-    if (!sessionUser) {
-      throw new Error('Debes iniciar sesión en tu cuenta para registrar materias.');
-    }
-
-    const newSubPayload = {
-      user_id: userId,
-      name: data.name,
-      code: data.code,
-      color: data.color,
-      target_grade: data.target_grade,
-      min_passing_grade: data.min_passing_grade,
-      scale_max: data.scale_max,
-      is_archived: false,
-    };
-
     const createdSubject: Subject = {
       ...data,
       id: generateUUID(),
@@ -173,6 +232,17 @@ export const useAppStore = create<AppState>()(
     set((state) => ({ subjects: [...state.subjects, createdSubject] }));
 
     if (isSupabaseConfigured() && sessionUser) {
+      const newSubPayload = {
+        user_id: userId,
+        name: data.name,
+        code: data.code,
+        color: data.color,
+        target_grade: data.target_grade,
+        min_passing_grade: data.min_passing_grade,
+        scale_max: data.scale_max,
+        is_archived: false,
+      };
+
       try {
         const { data: inserted, error } = await supabase
           .from('subjects')
@@ -232,19 +302,6 @@ export const useAppStore = create<AppState>()(
       }
     }
 
-    if (!sessionUser) {
-      throw new Error('Debes iniciar sesión en tu cuenta para registrar calificaciones.');
-    }
-
-    const payload = {
-      user_id: userId,
-      subject_id: data.subject_id,
-      name: data.name,
-      weight_percentage: data.weight_percentage,
-      grade: data.grade,
-      is_evaluated: data.is_evaluated,
-    };
-
     const newGrade: Grade = {
       ...data,
       id: generateUUID(),
@@ -255,6 +312,15 @@ export const useAppStore = create<AppState>()(
     set((state) => ({ grades: [...state.grades, newGrade] }));
 
     if (isSupabaseConfigured() && sessionUser) {
+      const payload = {
+        user_id: userId,
+        subject_id: data.subject_id,
+        name: data.name,
+        weight_percentage: data.weight_percentage,
+        grade: data.grade,
+        is_evaluated: data.is_evaluated,
+      };
+
       try {
         const { data: inserted, error } = await supabase
           .from('grades')
@@ -308,21 +374,6 @@ export const useAppStore = create<AppState>()(
       }
     }
 
-    if (!sessionUser) {
-      throw new Error('Debes iniciar sesión en tu cuenta para crear tareas y alertas.');
-    }
-
-    const payload = {
-      user_id: userId,
-      subject_id: data.subject_id,
-      title: data.title,
-      notes: data.notes,
-      due_date: data.due_date,
-      priority: data.priority,
-      is_completed: false,
-      is_class_log: data.is_class_log,
-    };
-
     let newTask: Task = {
       ...data,
       id: generateUUID(),
@@ -348,6 +399,17 @@ export const useAppStore = create<AppState>()(
     set((state) => ({ tasks: [newTask, ...state.tasks] }));
 
     if (isSupabaseConfigured() && sessionUser) {
+      const payload = {
+        user_id: userId,
+        subject_id: data.subject_id,
+        title: data.title,
+        notes: data.notes,
+        due_date: data.due_date,
+        priority: data.priority,
+        is_completed: false,
+        is_class_log: data.is_class_log,
+      };
+
       try {
         const { data: inserted, error } = await supabase
           .from('tasks')

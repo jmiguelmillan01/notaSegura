@@ -1,58 +1,84 @@
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import Constants from 'expo-constants'; // Añadido para intentar evitar el error de ExpoApplication
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Task, TaskPriority } from '../types/database';
 
-// Configurar cómo se comportan las notificaciones cuando la app está abierta
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// Detectar de forma confiable si se ejecuta en Expo Go
+function isExpoGoClient(): boolean {
+  try {
+    return (
+      Constants.appOwnership === 'expo' ||
+      Constants.executionEnvironment === ExecutionEnvironment.StoreClient
+    );
+  } catch {
+    return false;
+  }
+}
+
+// Carga perezosa (lazy) protegida de expo-notifications para evitar que crashee
+// la aplicación en entornos donde el módulo nativo no está disponible (como Expo Go en Android)
+let Notifications: typeof import('expo-notifications') | null = null;
+
+try {
+  // Solo cargar si no es web y no es Expo Go en Android (donde las notificaciones están deshabilitadas)
+  if (Platform.OS !== 'web' && !(Platform.OS === 'android' && isExpoGoClient())) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    Notifications = require('expo-notifications');
+    if (Notifications && Notifications.setNotificationHandler) {
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+          shouldShowBanner: true,
+          shouldShowList: true,
+        }),
+      });
+    }
+  }
+} catch (e) {
+  Notifications = null;
+}
 
 /**
  * Solicitar permisos para notificaciones locales
  */
 export async function requestNotificationPermissions(): Promise<boolean> {
-  // Detectar si estamos en Expo Go en Android
-  const isExpoGo = Constants.appOwnership === 'expo';
-  
-  if (Platform.OS === 'web' || (Platform.OS === 'android' && isExpoGo)) {
+  if (!Notifications) return false;
+
+  if (Platform.OS === 'web' || (Platform.OS === 'android' && isExpoGoClient())) {
     return false;
   }
 
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
+  try {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
 
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
 
-  if (finalStatus !== 'granted') {
-    return false;
-  }
+    if (finalStatus !== 'granted') {
+      return false;
+    }
 
-  if (Platform.OS === 'android') {
-    try {
-      if (Notifications.setNotificationChannelAsync) {
+    if (Platform.OS === 'android' && Notifications.setNotificationChannelAsync) {
+      try {
         await Notifications.setNotificationChannelAsync('academic-alerts', {
           name: 'Alertas Académicas NotaSegura',
           importance: Notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 250, 250, 250],
           lightColor: '#4F46E5',
         });
+      } catch (channelErr) {
+        // En algunos dispositivos/emuladores de Expo Go setNotificationChannelAsync puede fallar sin afectar la ejecución
       }
-    } catch (e) {
-      console.warn('Channel error:', e);
     }
-  }
 
-  return true;
+    return true;
+  } catch (err) {
+    return false;
+  }
 }
 
 /**
@@ -78,7 +104,7 @@ export function getAlertOffsetsDays(priority: TaskPriority): number[] {
  * Programa las alertas automáticas para una tarea según su prioridad y fecha límite
  */
 export async function scheduleTaskAlerts(task: Task, subjectName: string): Promise<string[]> {
-  if (Platform.OS === 'web') return [];
+  if (!Notifications || Platform.OS === 'web') return [];
 
   const hasPermission = await requestNotificationPermissions();
   if (!hasPermission) return [];
@@ -125,7 +151,7 @@ export async function scheduleTaskAlerts(task: Task, subjectName: string): Promi
  * Cancela las notificaciones asociadas a una tarea (ej. si se completa o elimina)
  */
 export async function cancelTaskAlerts(notificationIds: string[] = []): Promise<void> {
-  if (Platform.OS === 'web' || !notificationIds.length) return;
+  if (!Notifications || Platform.OS === 'web' || !notificationIds.length) return;
 
   for (const id of notificationIds) {
     try {

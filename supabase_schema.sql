@@ -162,6 +162,10 @@ create policy "Users can update their own profile"
     on public.profiles for update
     using (auth.uid() = id);
 
+create policy "Users can delete their own profile"
+    on public.profiles for delete
+    using (auth.uid() = id);
+
 -- Políticas para Subjects
 create policy "Users can manage their own subjects"
     on public.subjects for all
@@ -218,3 +222,26 @@ using (
     and auth.uid()::text = (storage.foldername(name))[1]
 );
 
+-- ==============================================================================
+-- 11. FUNCIÓN PARA ELIMINAR CUENTA DEFINITIVAMENTE (SUPABASE AUTH)
+-- ==============================================================================
+create or replace function public.delete_user_account()
+returns void
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+    v_user_id uuid;
+begin
+    v_user_id := auth.uid();
+    if v_user_id is null then
+        raise exception 'Usuario no autenticado.';
+    end if;
+
+    -- Eliminar usuario de auth.users (ON DELETE CASCADE elimina perfiles, materias, tareas, calificaciones, etc.)
+    delete from auth.users where id = v_user_id;
+end;
+$$;
+
+grant execute on function public.delete_user_account() to authenticated;

@@ -19,16 +19,17 @@ import { useThemeColors } from '../src/utils/theme';
 export default function LoginScreen() {
   const router = useRouter();
   const fetchData = useAppStore((state) => state.fetchData);
+  const clearStore = useAppStore((state) => state.clearStore);
   const colors = useThemeColors();
   const isDark = colors.isDark;
 
-  const [email, setEmail] = useState('');
+  const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert('Campos requeridos', 'Por favor ingresa tu correo y contraseña.');
+    if (!usernameOrEmail.trim() || !password.trim()) {
+      Alert.alert('Campos requeridos', 'Por favor ingresa tu usuario y contraseña.');
       return;
     }
 
@@ -39,17 +40,26 @@ export default function LoginScreen() {
 
     try {
       setLoading(true);
+
+      const cleanInput = usernameOrEmail.trim().toLowerCase().replace(/\s+/g, '');
+      const authEmail = cleanInput.includes('@') ? cleanInput : `${cleanInput}@notasegura.local`;
+
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: authEmail,
         password,
       });
 
       if (error) {
-        Alert.alert('Error al iniciar sesión', error.message);
+        if (error.message.includes('Invalid login credentials')) {
+          Alert.alert('Error de inicio de sesión', 'Usuario o contraseña incorrectos. Verifica tus datos.');
+        } else {
+          Alert.alert('Error al iniciar sesión', error.message);
+        }
         return;
       }
 
       if (data.session) {
+        clearStore();
         await fetchData();
         router.replace('/(tabs)');
       }
@@ -70,19 +80,21 @@ export default function LoginScreen() {
             <Ionicons name="school" size={40} color="#4F46E5" />
           </View>
           <Text style={[styles.title, { color: colors.text }]}>¡Bienvenido de nuevo!</Text>
-          <Text style={[styles.subtitle, { color: colors.subText }]}>Inicia sesión para sincronizar tus notas y tareas con Supabase</Text>
+          <Text style={[styles.subtitle, { color: colors.subText }]}>
+            Inicia sesión con tu usuario y contraseña para sincronizar tu progreso
+          </Text>
         </View>
 
         <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.label, { color: colors.subText }]}>Correo Electrónico</Text>
+          <Text style={[styles.label, { color: colors.subText }]}>Usuario o Correo Electrónico</Text>
           <TextInput
             style={[styles.input, { backgroundColor: colors.inputBg, color: colors.inputText, borderColor: colors.inputBorder }]}
-            placeholder="tu@correo.com"
+            placeholder="Ej: juan123 o tu@correo.com"
             placeholderTextColor={colors.mutedText}
-            keyboardType="email-address"
             autoCapitalize="none"
-            value={email}
-            onChangeText={setEmail}
+            autoCorrect={false}
+            value={usernameOrEmail}
+            onChangeText={setUsernameOrEmail}
           />
 
           <Text style={[styles.label, { color: colors.subText }]}>Contraseña</Text>
