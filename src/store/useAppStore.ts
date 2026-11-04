@@ -60,6 +60,73 @@ function generateUUID() {
   });
 }
 
+async function uploadMediaToSupabase(userId: string, taskId: string, mediaItems: MediaItem[]): Promise<MediaItem[]> {
+  const uploadedMedia: MediaItem[] = [];
+  for (const item of mediaItems) {
+    if (item.file_url.startsWith('http://') || item.file_url.startsWith('https://')) {
+      uploadedMedia.push(item);
+      continue;
+    }
+
+    try {
+      const fileUri = item.file_url;
+      const fileName = `img_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.jpg`;
+      const filePath = `${userId}/${taskId}/${fileName}`;
+
+      const response = await fetch(fileUri);
+      const blob = await response.blob();
+
+      const { error: uploadError } = await supabase.storage
+        .from('task-media')
+        .upload(filePath, blob, {
+          contentType: 'image/jpeg',
+          upsert: true,
+        });
+
+      if (uploadError) {
+        console.warn('Error uploading media to storage:', uploadError.message);
+        uploadedMedia.push(item);
+        continue;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('task-media')
+        .getPublicUrl(filePath);
+
+      const publicUrl = publicUrlData.publicUrl;
+
+      const { data: mediaRow, error: dbError } = await supabase
+        .from('media')
+        .insert({
+          user_id: userId,
+          task_id: taskId,
+          file_url: publicUrl,
+          file_path: filePath,
+          type: 'image',
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        console.warn('Error inserting media record into DB:', dbError.message);
+      }
+
+      uploadedMedia.push({
+        id: mediaRow?.id || item.id,
+        user_id: userId,
+        task_id: taskId,
+        file_url: publicUrl,
+        file_path: filePath,
+        type: 'image',
+      });
+    } catch (err) {
+      console.warn('Error processing media upload:', err);
+      uploadedMedia.push(item);
+    }
+  }
+  return uploadedMedia;
+}
+
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
@@ -97,23 +164,30 @@ export const useAppStore = create<AppState>()(
         return;
       }
 
-      const [subsRes, gradesRes, tasksRes, profileRes] = await Promise.all([
+      const [subsRes, gradesRes, tasksRes, mediaRes, profileRes] = await Promise.all([
         supabase.from('subjects').select('*').eq('user_id', userId),
         supabase.from('grades').select('*').eq('user_id', userId),
         supabase.from('tasks').select('*').eq('user_id', userId),
+        supabase.from('media').select('*').eq('user_id', userId),
         supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
       ]);
 
       if (subsRes.error) console.error("Error Supabase fetching subjects:", subsRes.error.message);
       if (gradesRes.error) console.error("Error Supabase fetching grades:", gradesRes.error.message);
       if (tasksRes.error) console.error("Error Supabase fetching tasks:", tasksRes.error.message);
+      if (mediaRes.error) console.error("Error Supabase fetching media:", mediaRes.error.message);
       if ('error' in profileRes && profileRes.error) console.error("Error Supabase fetching profile:", profileRes.error.message);
+
+      const tasksWithMedia = (tasksRes.data || []).map((t: Task) => ({
+        ...t,
+        media: (mediaRes.data || []).filter((m: any) => m.task_id === t.id),
+      }));
 
       // Asignar los datos del usuario actual (si no tiene, debe quedar vacío, no con los datos del usuario anterior)
       set({
         subjects: subsRes.data || [],
         grades: gradesRes.data || [],
-        tasks: tasksRes.data || [],
+        tasks: tasksWithMedia,
         profile: profileRes.data || null,
       });
     } catch (err) {
@@ -420,7 +494,8 @@ export const useAppStore = create<AppState>()(
         if (error) {
           console.warn('Supabase offline/sync task error (saved locally):', error.message);
         } else if (inserted) {
-          const syncedTask = { ...inserted, media, notification_ids: newTask.notification_ids };
+          const uploadedMedia = await uploadMediaToSupabase(userId, inserted.id, media);
+          const syncedTask = { ...inserted, media: uploadedMedia, notification_ids: newTask.notification_ids };
           set((state) => ({
             tasks: state.tasks.map((t) => (t.id === newTask.id ? syncedTask : t)),
           }));
@@ -479,6 +554,16 @@ export const useAppStore = create<AppState>()(
     }));
 
     if (isSupabaseConfigured()) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
+      if (userId && media !== undefined) {
+        const uploadedMedia = await uploadMediaToSupabase(userId, id, media);
+        updatedTask.media = uploadedMedia;
+        set((state) => ({
+          tasks: state.tasks.map((t) => (t.id === id ? updatedTask : t)),
+        }));
+      }
+
       const { error } = await supabase.from('tasks').update(updates).eq('id', id);
       if (error) console.error("Supabase update task error:", error.message);
     }
