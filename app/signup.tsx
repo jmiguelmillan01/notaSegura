@@ -28,6 +28,7 @@ export default function SignupScreen() {
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [legalModalVisible, setLegalModalVisible] = useState(false);
@@ -146,14 +147,19 @@ export default function SignupScreen() {
           />
 
           <Text style={[styles.label, { color: colors.subText }]}>Contraseña (mínimo 6 caracteres) *</Text>
-          <TextInput
-            style={[styles.input, { backgroundColor: colors.inputBg, color: colors.inputText, borderColor: colors.inputBorder }]}
-            placeholder="••••••••"
-            placeholderTextColor={colors.mutedText}
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
+          <View style={[styles.passwordContainer, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+            <TextInput
+              style={[styles.passwordInput, { color: colors.inputText }]}
+              placeholder="••••••••"
+              placeholderTextColor={colors.mutedText}
+              secureTextEntry={!showPassword}
+              value={password}
+              onChangeText={setPassword}
+            />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+              <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.subText} />
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.termsRow}>
             <TouchableOpacity
@@ -277,6 +283,21 @@ const styles = StyleSheet.create({
     padding: 14,
     fontSize: 15,
     color: '#111827',
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 15,
+  },
+  eyeBtn: {
+    padding: 6,
   },
   button: {
     backgroundColor: '#4F46E5',

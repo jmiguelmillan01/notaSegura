@@ -43,6 +43,8 @@ export default function ProfileScreen() {
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [legalModalVisible, setLegalModalVisible] = useState(false);
   const [legalType, setLegalType] = useState<'privacy' | 'terms'>('privacy');
@@ -396,24 +398,34 @@ export default function ProfileScreen() {
             </View>
 
             <Text style={[styles.inputLabel, dynamicStyles.label]}>Nueva Contraseña (mínimo 6 caracteres)</Text>
-            <TextInput
-              style={[styles.textInput, dynamicStyles.input]}
-              placeholder="••••••••"
-              placeholderTextColor={colors.mutedText}
-              secureTextEntry
-              value={newPassword}
-              onChangeText={setNewPassword}
-            />
+            <View style={[styles.passwordContainer, dynamicStyles.input, { paddingHorizontal: 12, paddingVertical: 0 }]}>
+              <TextInput
+                style={[styles.passwordInput, { color: colors.inputText }]}
+                placeholder="••••••••"
+                placeholderTextColor={colors.mutedText}
+                secureTextEntry={!showNewPassword}
+                value={newPassword}
+                onChangeText={setNewPassword}
+              />
+              <TouchableOpacity onPress={() => setShowNewPassword(!showNewPassword)} style={styles.eyeBtn}>
+                <Ionicons name={showNewPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.subText} />
+              </TouchableOpacity>
+            </View>
 
             <Text style={[styles.inputLabel, dynamicStyles.label]}>Confirmar Nueva Contraseña</Text>
-            <TextInput
-              style={[styles.textInput, dynamicStyles.input]}
-              placeholder="••••••••"
-              placeholderTextColor={colors.mutedText}
-              secureTextEntry
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-            />
+            <View style={[styles.passwordContainer, dynamicStyles.input, { paddingHorizontal: 12, paddingVertical: 0 }]}>
+              <TextInput
+                style={[styles.passwordInput, { color: colors.inputText }]}
+                placeholder="••••••••"
+                placeholderTextColor={colors.mutedText}
+                secureTextEntry={!showConfirmPassword}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+              />
+              <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeBtn}>
+                <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.subText} />
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
               style={[styles.saveButton, updatingPassword && { opacity: 0.7 }]}
@@ -652,5 +664,20 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 15,
+  },
+  eyeBtn: {
+    padding: 8,
   },
 });

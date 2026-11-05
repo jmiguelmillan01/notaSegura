@@ -25,6 +25,7 @@ export default function LoginScreen() {
 
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
@@ -98,14 +99,19 @@ export default function LoginScreen() {
           />
 
           <Text style={[styles.label, { color: colors.subText }]}>Contraseña</Text>
-          <TextInput
-            style={[styles.input, { backgroundColor: colors.inputBg, color: colors.inputText, borderColor: colors.inputBorder }]}
-            placeholder="••••••••"
-            placeholderTextColor={colors.mutedText}
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
+          <View style={[styles.passwordContainer, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+            <TextInput
+              style={[styles.passwordInput, { color: colors.inputText }]}
+              placeholder="••••••••"
+              placeholderTextColor={colors.mutedText}
+              secureTextEntry={!showPassword}
+              value={password}
+              onChangeText={setPassword}
+            />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+              <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.subText} />
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity
             style={[styles.button, loading && { opacity: 0.7 }]}
@@ -194,6 +200,21 @@ const styles = StyleSheet.create({
     padding: 14,
     fontSize: 15,
     color: '#111827',
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 15,
+  },
+  eyeBtn: {
+    padding: 6,
   },
   button: {
     backgroundColor: '#4F46E5',
