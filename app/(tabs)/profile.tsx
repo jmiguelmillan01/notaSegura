@@ -103,30 +103,37 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleResetPassword = async () => {
-    if (!isSupabaseConfigured() || !userEmail) return;
-    
-    Alert.alert(
-      'Cambiar Contraseña',
-      '¿Deseas recibir un enlace en tu correo para restablecer tu contraseña?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Enviar Correo',
-          onPress: async () => {
-            try {
-              const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
-                redirectTo: 'notasegura://reset-password',
-              });
-              if (error) throw error;
-              Alert.alert('Correo enviado', 'Revisa tu bandeja de entrada para continuar.');
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'No se pudo enviar el correo.');
-            }
-          },
-        },
-      ]
-    );
+  const handleResetPassword = () => {
+    setPasswordModalVisible(true);
+  };
+
+  const handleUpdatePasswordDirect = async () => {
+    if (!newPassword.trim() || newPassword.length < 6) {
+      Alert.alert('Contraseña débil', 'La nueva contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Error', 'Las contraseñas no coinciden.');
+      return;
+    }
+
+    try {
+      setUpdatingPassword(true);
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword.trim(),
+      });
+
+      if (error) throw error;
+
+      Alert.alert('¡Éxito!', 'Tu contraseña ha sido actualizada correctamente.');
+      setPasswordModalVisible(false);
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'No se pudo actualizar la contraseña.');
+    } finally {
+      setUpdatingPassword(false);
+    }
   };
 
   const handleSignOut = async () => {
@@ -377,6 +384,48 @@ export default function ProfileScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <Modal visible={passwordModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, dynamicStyles.card]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, dynamicStyles.text]}>Cambiar Contraseña</Text>
+              <TouchableOpacity onPress={() => setPasswordModalVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.subText} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.inputLabel, dynamicStyles.label]}>Nueva Contraseña (mínimo 6 caracteres)</Text>
+            <TextInput
+              style={[styles.textInput, dynamicStyles.input]}
+              placeholder="••••••••"
+              placeholderTextColor={colors.mutedText}
+              secureTextEntry
+              value={newPassword}
+              onChangeText={setNewPassword}
+            />
+
+            <Text style={[styles.inputLabel, dynamicStyles.label]}>Confirmar Nueva Contraseña</Text>
+            <TextInput
+              style={[styles.textInput, dynamicStyles.input]}
+              placeholder="••••••••"
+              placeholderTextColor={colors.mutedText}
+              secureTextEntry
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+            />
+
+            <TouchableOpacity
+              style={[styles.saveButton, updatingPassword && { opacity: 0.7 }]}
+              onPress={handleUpdatePasswordDirect}
+              disabled={updatingPassword}>
+              <Text style={styles.saveButtonText}>
+                {updatingPassword ? 'Actualizando...' : 'Guardar Nueva Contraseña'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -578,5 +627,30 @@ const styles = StyleSheet.create({
   versionText: {
     fontSize: 12,
     color: '#9CA3AF',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
   },
 });
