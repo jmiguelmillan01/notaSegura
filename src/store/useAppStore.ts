@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Subject, Grade, Task, MediaItem, TaskPriority } from '../types/database';
 import { scheduleTaskAlerts, cancelTaskAlerts } from '../services/notifications';
 import { supabase, isSupabaseConfigured } from '../services/supabase';
+import * as FileSystem from 'expo-file-system';
 
 interface AppState {
   subjects: Subject[];
@@ -60,6 +61,16 @@ function generateUUID() {
   });
 }
 
+function base64ToArrayBuffer(base64: string) {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
 async function uploadMediaToSupabase(userId: string, taskId: string, mediaItems: MediaItem[]): Promise<MediaItem[]> {
   const uploadedMedia: MediaItem[] = [];
   for (const item of mediaItems) {
@@ -73,8 +84,10 @@ async function uploadMediaToSupabase(userId: string, taskId: string, mediaItems:
       const fileName = `img_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.jpg`;
       const filePath = `${userId}/${taskId}/${fileName}`;
 
-      const response = await fetch(fileUri);
-      const arrayBuffer = await response.arrayBuffer();
+      const base64 = await FileSystem.readAsStringAsync(fileUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const arrayBuffer = base64ToArrayBuffer(base64);
 
       const { error: uploadError } = await supabase.storage
         .from('task-media')
