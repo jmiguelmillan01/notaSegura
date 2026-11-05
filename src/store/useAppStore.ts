@@ -177,6 +177,9 @@ export const useAppStore = create<AppState>()(
         return;
       }
 
+      // Sincronizar cambios locales pendientes a Supabase si recuperó conexión
+      await get().syncLocalDataToUser();
+
       const [subsRes, gradesRes, tasksRes, mediaRes, profileRes] = await Promise.all([
         supabase.from('subjects').select('*').eq('user_id', userId),
         supabase.from('grades').select('*').eq('user_id', userId),
@@ -185,26 +188,27 @@ export const useAppStore = create<AppState>()(
         supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
       ]);
 
-      if (subsRes.error) console.error("Error Supabase fetching subjects:", subsRes.error.message);
-      if (gradesRes.error) console.error("Error Supabase fetching grades:", gradesRes.error.message);
-      if (tasksRes.error) console.error("Error Supabase fetching tasks:", tasksRes.error.message);
-      if (mediaRes.error) console.error("Error Supabase fetching media:", mediaRes.error.message);
-      if ('error' in profileRes && profileRes.error) console.error("Error Supabase fetching profile:", profileRes.error.message);
+      // Si hay error de red u offline, mantener la caché local
+      if (subsRes.error || gradesRes.error || tasksRes.error) {
+        console.warn('Network offline or error fetching from Supabase, keeping local cache.');
+        set({ isLoading: false });
+        return;
+      }
 
       const tasksWithMedia = (tasksRes.data || []).map((t: Task) => ({
         ...t,
         media: (mediaRes.data || []).filter((m: any) => m.task_id === t.id),
       }));
 
-      // Asignar los datos del usuario actual (si no tiene, debe quedar vacío, no con los datos del usuario anterior)
+      // Asignar los datos actualizados conservando el respaldo local si viniera vacío por red
       set({
-        subjects: subsRes.data || [],
-        grades: gradesRes.data || [],
-        tasks: tasksWithMedia,
-        profile: profileRes.data || null,
+        subjects: subsRes.data !== null ? subsRes.data : get().subjects,
+        grades: gradesRes.data !== null ? gradesRes.data : get().grades,
+        tasks: tasksWithMedia.length > 0 ? tasksWithMedia : get().tasks,
+        profile: profileRes.data !== null ? profileRes.data : get().profile,
       });
     } catch (err) {
-      console.warn('Error fetching from Supabase:', err);
+      console.warn('Network offline, using local cached state:', err);
     } finally {
       set({ isLoading: false });
     }
