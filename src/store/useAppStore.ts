@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Subject, Grade, Task, MediaItem, TaskPriority } from '../types/database';
 import { scheduleTaskAlerts, cancelTaskAlerts } from '../services/notifications';
 import { supabase, isSupabaseConfigured } from '../services/supabase';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 interface AppState {
   subjects: Subject[];
