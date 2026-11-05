@@ -4,7 +4,7 @@
     "slug": "notasegura",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./icono_notasegura.jpg",
+    "icon": "./icono_notasegura_v2.jpg",
     "scheme": "notasegura",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -13,8 +13,8 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#4F46E5",
-        "foregroundImage": "./icono_notasegura.jpg",
-        "backgroundImage": "./icono_notasegura.jpg"
+        "foregroundImage": "./icono_notasegura_v2.jpg",
+        "backgroundImage": "./icono_notasegura_v2.jpg"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.notasegura"

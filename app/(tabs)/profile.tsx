@@ -387,6 +387,12 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
+      <LegalModal
+        visible={legalModalVisible}
+        type={legalType}
+        onClose={() => setLegalModalVisible(false)}
+      />
+
       <Modal visible={passwordModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, dynamicStyles.card]}>
